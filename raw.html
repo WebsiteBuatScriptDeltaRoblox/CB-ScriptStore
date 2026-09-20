@@ -1,4 +1,17 @@
 <!doctype html>
-<html lang="id"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Raw — CB ScriptStore</title><style>body{margin:0;background:#020814;color:#dff5ff;font-family:monospace}header{padding:14px 18px;border-bottom:1px solid #0b4f86;background:#031126}pre{margin:0;padding:20px;white-space:pre-wrap;overflow:auto;min-height:calc(100vh - 54px);box-sizing:border-box;color:#ccecff;font-size:14px;line-height:1.55}.err{color:#ff8da1;font-family:system-ui,sans-serif}</style></head><body><header>CB ScriptStore — Raw</header><pre id="code">Loading...</pre><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="config.js"></script><script>
-const q=new URLSearchParams(location.search),id=q.get('id'),out=document.getElementById('code');
-async function run(){if(!id){out.innerHTML='<span class="err">Script ID tidak ditemukan.</span>';return;}try{const sb=supabase.createClient(window.CB_SUPABASE_URL,window.CB_SUPABASE_ANON_KEY);const {data,error}=await sb.from('scripts').select('filename,code,visibility').eq('id',id).eq('visibility','public').maybeSingle();if(error)throw error;if(!data){out.innerHTML='<span class="err">Script publik tidak ditemukan.</span>';return;}document.title='Raw — '+data.filename;out.textContent=data.code||'';}catch(e){out.innerHTML='<span class="err">Gagal memuat Raw.</span>';console.error(e)}}run();</script></body></html>
+<html lang="id"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Raw</title><style>html,body{margin:0;padding:0;background:#fff;color:#000}pre{margin:0;padding:16px;box-sizing:border-box;white-space:pre-wrap;overflow-wrap:anywhere;font:14px/1.55 monospace;min-height:100vh}</style></head><body><pre id="code"></pre><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="config.js"></script><script>
+const id=new URLSearchParams(location.search).get('id');
+const out=document.getElementById('code');
+async function load(){
+  if(!id){out.textContent='Script ID tidak ditemukan.';return;}
+  try{
+    const sb=supabase.createClient(window.CB_SUPABASE_URL,window.CB_SUPABASE_ANON_KEY);
+    const {data,error}=await sb.from('scripts').select('filename,code,visibility').eq('id',id).eq('visibility','public').maybeSingle();
+    if(error) throw error;
+    if(!data){out.textContent='Script publik tidak ditemukan.';return;}
+    document.title=data.filename||'Raw';
+    out.textContent=data.code||'';
+  }catch(e){console.error(e);out.textContent='Gagal memuat Raw.';}
+}
+load();
+</script></body></html>
