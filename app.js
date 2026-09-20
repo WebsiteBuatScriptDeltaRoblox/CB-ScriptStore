@@ -132,6 +132,30 @@ const extraByLang={
 };
 const extraKeys=['workspaceTitle','workspaceDesc','logout','scriptFilename','private','public','saveScript','newScript','savedScripts','newScriptName','saved','updated','deleted','confirmDelete','needLoginWorkspace','raw','edit','delete'];
 for(const [lang,vals] of Object.entries(extraByLang)) vals.forEach((v,i)=>ui[lang][extraKeys[i]]=v);
+const statsText={
+ id:{statsTitle:'Statistik Website',statsDesc:'Lihat kunjungan, jumlah akun terdaftar, dan pengguna online.',totalVisits:'Total Kunjungan',registeredUsers:'Total Terdaftar',onlineUsers:'Online Sekarang',visitChartTitle:'Grafik Kunjungan',last7Days:'7 hari terakhir',loadingStats:'Memuat statistik...',noStats:'Belum ada data kunjungan.',profileSelect:'Pilih Foto Profil',saved:'Tersimpan.'},
+ en:{statsTitle:'Website Statistics',statsDesc:'View visits, registered accounts, and online users.',totalVisits:'Total Visits',registeredUsers:'Registered Users',onlineUsers:'Online Now',visitChartTitle:'Visit Graph',last7Days:'Last 7 days',loadingStats:'Loading statistics...',noStats:'No visit data yet.',profileSelect:'Choose Profile Photo',saved:'Saved.'},
+ es:{statsTitle:'Estadísticas del sitio',statsDesc:'Visitas, cuentas registradas y usuarios en línea.',totalVisits:'Visitas totales',registeredUsers:'Usuarios registrados',onlineUsers:'En línea ahora',visitChartTitle:'Gráfico de visitas',last7Days:'Últimos 7 días',loadingStats:'Cargando estadísticas...',noStats:'Aún no hay visitas.',profileSelect:'Elegir foto de perfil',saved:'Guardado.'},
+ pt:{statsTitle:'Estatísticas do site',statsDesc:'Veja visitas, contas registradas e usuários online.',totalVisits:'Total de visitas',registeredUsers:'Usuários registrados',onlineUsers:'Online agora',visitChartTitle:'Gráfico de visitas',last7Days:'Últimos 7 dias',loadingStats:'Carregando estatísticas...',noStats:'Ainda não há visitas.',profileSelect:'Escolher foto de perfil',saved:'Salvo.'},
+ ja:{statsTitle:'サイト統計',statsDesc:'訪問数、登録アカウント、オンラインユーザーを表示します。',totalVisits:'総訪問数',registeredUsers:'登録ユーザー',onlineUsers:'オンライン',visitChartTitle:'訪問グラフ',last7Days:'過去7日間',loadingStats:'統計を読み込み中...',noStats:'訪問データはありません。',profileSelect:'プロフィール写真を選択',saved:'保存しました。'},
+ ko:{statsTitle:'사이트 통계',statsDesc:'방문 수, 가입 계정, 온라인 사용자를 확인하세요.',totalVisits:'총 방문',registeredUsers:'가입 사용자',onlineUsers:'현재 온라인',visitChartTitle:'방문 그래프',last7Days:'최근 7일',loadingStats:'통계 로딩 중...',noStats:'방문 데이터가 없습니다.',profileSelect:'프로필 사진 선택',saved:'저장되었습니다.'},
+ zh:{statsTitle:'网站统计',statsDesc:'查看访问量、注册账户和在线用户。',totalVisits:'总访问量',registeredUsers:'注册用户',onlineUsers:'当前在线',visitChartTitle:'访问图表',last7Days:'最近7天',loadingStats:'正在加载统计...',noStats:'暂无访问数据。',profileSelect:'选择头像',saved:'已保存。'},
+ 'zh-TW':{statsTitle:'網站統計',statsDesc:'查看訪問量、註冊帳戶和線上使用者。',totalVisits:'總訪問量',registeredUsers:'註冊使用者',onlineUsers:'目前線上',visitChartTitle:'訪問圖表',last7Days:'最近7天',loadingStats:'正在載入統計...',noStats:'尚無訪問資料。',profileSelect:'選擇頭像',saved:'已儲存。'},
+ fr:{statsTitle:'Statistiques du site',statsDesc:'Visites, comptes inscrits et utilisateurs en ligne.',totalVisits:'Visites totales',registeredUsers:'Utilisateurs inscrits',onlineUsers:'En ligne',visitChartTitle:'Graphique des visites',last7Days:'7 derniers jours',loadingStats:'Chargement...',noStats:'Aucune visite.',profileSelect:'Choisir une photo',saved:'Enregistré.'},
+ de:{statsTitle:'Website-Statistik',statsDesc:'Besuche, registrierte Konten und Online-Nutzer.',totalVisits:'Besuche insgesamt',registeredUsers:'Registrierte Nutzer',onlineUsers:'Jetzt online',visitChartTitle:'Besuchsdiagramm',last7Days:'Letzte 7 Tage',loadingStats:'Statistik wird geladen...',noStats:'Noch keine Besuchsdaten.',profileSelect:'Profilfoto wählen',saved:'Gespeichert.'},
+ tr:{statsTitle:'Site İstatistikleri',statsDesc:'Ziyaretleri, kayıtlı hesapları ve çevrimiçi kullanıcıları görün.',totalVisits:'Toplam Ziyaret',registeredUsers:'Kayıtlı Kullanıcılar',onlineUsers:'Şimdi Çevrimiçi',visitChartTitle:'Ziyaret Grafiği',last7Days:'Son 7 gün',loadingStats:'İstatistikler yükleniyor...',noStats:'Henüz ziyaret yok.',profileSelect:'Profil fotoğrafı seç',saved:'Kaydedildi.'},
+ ru:{statsTitle:'Статистика сайта',statsDesc:'Посещения, зарегистрированные аккаунты и пользователи онлайн.',totalVisits:'Всего посещений',registeredUsers:'Зарегистрированные',onlineUsers:'Сейчас онлайн',visitChartTitle:'График посещений',last7Days:'Последние 7 дней',loadingStats:'Загрузка статистики...',noStats:'Данных о посещениях пока нет.',profileSelect:'Выбрать фото профиля',saved:'Сохранено.'},
+ hi:{statsTitle:'वेबसाइट आँकड़े',statsDesc:'विज़िट, पंजीकृत खाते और ऑनलाइन उपयोगकर्ता देखें।',totalVisits:'कुल विज़िट',registeredUsers:'पंजीकृत उपयोगकर्ता',onlineUsers:'अभी ऑनलाइन',visitChartTitle:'विज़िट ग्राफ',last7Days:'पिछले 7 दिन',loadingStats:'आँकड़े लोड हो रहे हैं...',noStats:'अभी कोई विज़िट डेटा नहीं।',profileSelect:'प्रोफ़ाइल फोटो चुनें',saved:'सहेजा गया।'},
+ ar:{statsTitle:'إحصاءات الموقع',statsDesc:'عرض الزيارات والحسابات المسجلة والمستخدمين المتصلين.',totalVisits:'إجمالي الزيارات',registeredUsers:'المستخدمون المسجلون',onlineUsers:'متصل الآن',visitChartTitle:'رسم الزيارات',last7Days:'آخر 7 أيام',loadingStats:'جارٍ تحميل الإحصاءات...',noStats:'لا توجد بيانات زيارات بعد.',profileSelect:'اختر صورة الملف الشخصي',saved:'تم الحفظ.'},
+ vi:{statsTitle:'Thống kê website',statsDesc:'Xem lượt truy cập, tài khoản đăng ký và người dùng online.',totalVisits:'Tổng lượt truy cập',registeredUsers:'Người dùng đã đăng ký',onlineUsers:'Đang online',visitChartTitle:'Biểu đồ truy cập',last7Days:'7 ngày qua',loadingStats:'Đang tải thống kê...',noStats:'Chưa có dữ liệu truy cập.',profileSelect:'Chọn ảnh hồ sơ',saved:'Đã lưu.'},
+ th:{statsTitle:'สถิติเข้าเว็บไซต์',statsDesc:'ดูการเข้าชม บัญชีที่ลงทะเบียน และผู้ใช้ออนไลน์',totalVisits:'การเข้าชมทั้งหมด',registeredUsers:'ผู้ใช้ที่ลงทะเบียน',onlineUsers:'ออนไลน์ตอนนี้',visitChartTitle:'กราฟการเข้าชม',last7Days:'7 วันที่ผ่านมา',loadingStats:'กำลังโหลดสถิติ...',noStats:'ยังไม่มีข้อมูลการเข้าชม',profileSelect:'เลือกรูปโปรไฟล์',saved:'บันทึกแล้ว'},
+ pl:{statsTitle:'Statystyki strony',statsDesc:'Wyświetl wizyty, zarejestrowane konta i użytkowników online.',totalVisits:'Łączne wizyty',registeredUsers:'Zarejestrowani użytkownicy',onlineUsers:'Teraz online',visitChartTitle:'Wykres wizyt',last7Days:'Ostatnie 7 dni',loadingStats:'Ładowanie statystyk...',noStats:'Brak danych o wizytach.',profileSelect:'Wybierz zdjęcie profilu',saved:'Zapisano.'},
+ it:{statsTitle:'Statistiche del sito',statsDesc:'Visite, account registrati e utenti online.',totalVisits:'Visite totali',registeredUsers:'Utenti registrati',onlineUsers:'Online ora',visitChartTitle:'Grafico visite',last7Days:'Ultimi 7 giorni',loadingStats:'Caricamento statistiche...',noStats:'Nessun dato sulle visite.',profileSelect:'Scegli foto profilo',saved:'Salvato.'},
+ 'pt-PT':{statsTitle:'Estatísticas do site',statsDesc:'Visitas, contas registadas e utilizadores online.',totalVisits:'Total de visitas',registeredUsers:'Utilizadores registados',onlineUsers:'Online agora',visitChartTitle:'Gráfico de visitas',last7Days:'Últimos 7 dias',loadingStats:'A carregar estatísticas...',noStats:'Ainda não existem visitas.',profileSelect:'Escolher foto de perfil',saved:'Guardado.'}
+};
+for(const [lang,vals] of Object.entries(statsText)) Object.assign(ui[lang]||{},vals);
+Object.assign(ui.id,{navWorkspace:'Script',profile:'Profil',logout:'Logout'}); Object.assign(ui.en,{navWorkspace:'Scripts',profile:'Profile',logout:'Logout'});
+
 ui.id.scriptCode='Tulis kode Luau di sini...'; ui.en.scriptCode='Write your Luau code here...';
 for(const lang of Object.keys(ui)) if(!ui[lang].scriptCode) ui[lang].scriptCode=ui.en.scriptCode;
 
@@ -194,7 +218,7 @@ function applyLanguage(){
   $('#viewAll').title=dict.back;
   renderTutorials();
   renderScriptsIfPossible();
-  applyChatLanguage();
+  loadStats();
 }
 
 function openAuth(m, silent=false){
@@ -235,8 +259,9 @@ async function loadProfile(){
   }
   let username=currentUser.user_metadata?.username || '';
   try{
-    const {data,error}=await sb.from('profiles').select('username').eq('id',currentUser.id).maybeSingle();
+    const {data,error}=await sb.from('profiles').select('username,avatar_url').eq('id',currentUser.id).maybeSingle();
     if(!error && data?.username) username=data.username;
+    if(!error && data?.avatar_url) $('#profileAvatar').src=data.avatar_url;
   }catch(_){}
   username=username || currentUser.email?.split('@')[0] || 'User';
   if(nameEl)nameEl.textContent=username;
@@ -248,7 +273,7 @@ function closeMenu(){const menu=$('#sideMenu'),back=$('#menuBackdrop'),toggle=$(
 function openMenu(){const menu=$('#sideMenu'),back=$('#menuBackdrop'),toggle=$('#menuToggle');if(menu)menu.classList.add('open');if(back)back.classList.remove('hidden');if(toggle){toggle.setAttribute('aria-expanded','true');toggle.classList.add('active');}if(menu)menu.setAttribute('aria-hidden','false');loadProfile();}
 function goTo(route){
   closeMenu();
-  if((route==='create'||route==='workspace'||route==='profile'||route==='chat') && !currentUser){ pendingRoute=route; openAuth('login'); return; }
+  if((route==='create'||route==='workspace'||route==='profile') && !currentUser){ pendingRoute=route; openAuth('login'); return; }
   window.location.hash=route==='home'?'#home':'#'+route;
 }
 
@@ -311,35 +336,43 @@ async function saveScript(e){
     if(id){ result=await sb.from('scripts').update({filename,code,visibility,updated_at:new Date().toISOString()}).eq('id',id).eq('user_id',currentUser.id).select('id').single(); }
     else { result=await sb.from('scripts').insert({user_id:currentUser.id,filename,code,visibility}).select('id').single(); }
     if(result.error)throw result.error;
-    err.style.color='#28d9a4';err.textContent=tr(id?'updated':'saved');resetScriptForm(false);await loadScripts();
+    err.style.color='#28d9a4';err.textContent=tr(id?'updated':'saved');resetScriptForm(false);await loadScripts();window.location.hash='#create';
   }catch(e){err.style.color='#ff7690';err.textContent=e.message||'Gagal menyimpan script.';}
 }
 function resetScriptForm(clearMessage=true){$('#scriptId').value='';$('#scriptFilename').value='';$('#scriptCode').value='';$('#scriptVisibility').value='private';if(clearMessage){$('#scriptError').textContent='';$('#scriptError').style.color='';}}
-function editScript(s){if(!s)return;$('#scriptId').value=s.id;$('#scriptFilename').value=s.filename;$('#scriptCode').value=s.code;$('#scriptVisibility').value=s.visibility;window.location.hash='#workspace';}
+function editScript(s){if(!s)return;$('#scriptId').value=s.id;$('#scriptFilename').value=s.filename;$('#scriptCode').value=s.code;$('#scriptVisibility').value=s.visibility;window.location.hash='#create';}
 async function deleteScript(id){if(!confirm(tr('confirmDelete')))return;try{const {error}=await sb.from('scripts').delete().eq('id',id).eq('user_id',currentUser.id);if(error)throw error;$('#scriptError').style.color='#28d9a4';$('#scriptError').textContent=tr('deleted');resetScriptForm(false);await loadScripts();}catch(e){$('#scriptError').style.color='#ff7690';$('#scriptError').textContent=e.message||'Delete failed.';}}
 async function logout(){await sb.auth.signOut();stopRealtime();token=null;currentUser=null;resetScriptForm();await loadScripts();routePage();}
 
-let presenceTimer=null, onlineTimer=null, chatTimer=null, chatLastId=0, chatLoading=false, lastChatAt=0;
-function stopRealtime(){if(presenceTimer){clearInterval(presenceTimer);presenceTimer=null;}if(onlineTimer){clearInterval(onlineTimer);onlineTimer=null;}if(chatTimer){clearInterval(chatTimer);chatTimer=null;}}
-async function heartbeat(){await syncAuth();if(!currentUser)return;await sb.from('presence').upsert({user_id:currentUser.id,last_seen:new Date().toISOString()});}
-function startRealtime(){stopRealtime();if(!currentUser)return;heartbeat();presenceTimer=setInterval(heartbeat,20000);refreshOnline();onlineTimer=setInterval(refreshOnline,10000);if(window.location.hash==='#chat')startChatPolling();}
-async function refreshOnline(){const box=$('#onlineUsers');if(!box)return;await syncAuth();if(!currentUser){box.innerHTML=`<div class="empty">${escapeHtml(tr('chatLogin'))}</div>`;$('#onlineCount').textContent='0';return;}try{const cutoff=new Date(Date.now()-60000).toISOString();const {data,error}=await sb.from('presence').select('user_id,last_seen,profiles(username)').gt('last_seen',cutoff).order('last_seen',{ascending:false}).limit(100);if(error)throw error;const users=(data||[]).map(x=>({id:x.user_id,username:x.profiles?.username||'User',last_seen:x.last_seen}));$('#onlineCount').textContent=String(users.length);if($('#onlineCountSide'))$('#onlineCountSide').textContent=String(users.length);box.innerHTML=users.length?users.map(u=>`<div class="online-user"><span class="online-dot"></span><span>${escapeHtml(u.username)}</span></div>`).join(''):`<div class="empty">${escapeHtml(tr('noMessages'))}</div>`;}catch(e){box.innerHTML=`<div class="empty">${escapeHtml(e.message||tr('chatError'))}</div>`;}}
-function normalizeChat(rows){return (rows||[]).map(m=>({id:m.id,user_id:m.user_id,message:m.message,created_at:m.created_at,username:m.profiles?.username||currentUser?.user_metadata?.username||'User'}));}
-function renderChatMessages(rows, append=false){const box=$('#chatMessages');if(!box)return;if(!append)box.innerHTML='';if(!rows.length&&!box.children.length){box.innerHTML=`<div class="empty">${escapeHtml(tr('noMessages'))}</div>`;return;}const empty=box.querySelector('.empty');if(empty)empty.remove();for(const m of rows){const article=document.createElement('article');article.className='chat-message';article.dataset.id=m.id;const time=new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});article.innerHTML=`<div class="chat-meta"><b>${escapeHtml(m.username)}</b><time>${escapeHtml(time)}</time></div><div class="chat-text">${escapeHtml(m.message).replace(/\n/g,'<br>')}</div>`;box.appendChild(article);chatLastId=Math.max(chatLastId,Number(m.id)||0);}box.scrollTop=box.scrollHeight;}
-async function loadChat(initial=false){await syncAuth();if(!currentUser){stopChatPolling();const box=$('#chatMessages');if(box)box.innerHTML=`<div class="empty">${escapeHtml(tr('chatLogin'))}</div>`;return;}if(chatLoading)return;chatLoading=true;try{let q=sb.from('chat_messages').select('id,user_id,message,created_at,profiles(username)').order('id',{ascending:false}).limit(60);if(!initial&&chatLastId)q=q.gt('id',chatLastId).order('id',{ascending:true});const {data,error}=await q;if(error)throw error;const rows=normalizeChat(initial?data.reverse():data);renderChatMessages(rows,!(initial||!chatLastId));}catch(e){if(initial){const box=$('#chatMessages');if(box)box.innerHTML=`<div class="empty">${escapeHtml(e.message||tr('chatError'))}</div>`;}}finally{chatLoading=false;}}
-function startChatPolling(){if(!currentUser)return;if(chatTimer)clearInterval(chatTimer);chatLastId=0;loadChat(true);chatTimer=setInterval(()=>{if(window.location.hash==='#chat')loadChat(false);},2500);}
-function stopChatPolling(){if(chatTimer){clearInterval(chatTimer);chatTimer=null;}}
-async function sendChat(e){e.preventDefault();await syncAuth();if(!currentUser){openAuth('login');return;}const input=$('#chatInput'),err=$('#chatError'),message=input.value.trim();err.textContent='';if(!message)return;const now=Date.now();if(now-lastChatAt<1200){err.textContent='Tunggu sebentar sebelum mengirim pesan lagi.';return;}try{const {data,error}=await sb.from('chat_messages').insert({user_id:currentUser.id,message}).select('id,user_id,message,created_at,profiles(username)').single();if(error)throw error;lastChatAt=now;input.value='';renderChatMessages(normalizeChat([data]),true);}catch(e){err.textContent=e.message||tr('chatError');}}
-function applyChatLanguage(){const ids=[['chatTitle','chatTitle'],['chatDesc','chatDesc'],['onlineTitle','onlineNow']];ids.forEach(([id,key])=>{const el=$('#'+id);if(el)el.textContent=tr(key);});const input=$('#chatInput');if(input)input.placeholder=tr('chatPlaceholder');const send=$('#sendChat');if(send)send.textContent=tr('send');if(token)loadChat(true);}
+let presenceTimer=null, onlineTimer=null;
+function stopRealtime(){if(presenceTimer){clearInterval(presenceTimer);presenceTimer=null;}if(onlineTimer){clearInterval(onlineTimer);onlineTimer=null;}}
+async function heartbeat(){await syncAuth();if(!currentUser)return;try{await sb.from('presence').upsert({user_id:currentUser.id,last_seen:new Date().toISOString()});}catch(_){}}
+async function refreshOnlineCount(){const el=$('#onlineCountStat');if(!el)return;try{const cutoff=new Date(Date.now()-60000).toISOString();const {count,error}=await sb.from('presence').select('user_id',{count:'exact',head:true}).gt('last_seen',cutoff);if(error)throw error;el.textContent=String(count||0);}catch(_){el.textContent='0';}}
+function startRealtime(){stopRealtime();if(!currentUser)return;heartbeat();presenceTimer=setInterval(heartbeat,20000);refreshOnlineCount();onlineTimer=setInterval(refreshOnlineCount,15000);}
 
-$('#languageSelect').addEventListener('change',e=>{localStorage.setItem('cb_lang',e.target.value);applyLanguage();});
+async function recordVisit(){try{await sb.from('site_visits').insert({path:location.pathname+location.hash,visitor_id:ensureVisitorId()});const v=localStorage.getItem('cb_visitor_id')||'';if(!v){} }catch(_){}}
+function ensureVisitorId(){let v=localStorage.getItem('cb_visitor_id');if(!v){v=(crypto.randomUUID?crypto.randomUUID():String(Date.now())+'-'+Math.random());localStorage.setItem('cb_visitor_id',v);}return v;}
+async function loadStats(){
+  const vc=$('#visitCount'), rc=$('#registeredCount'), oc=$('#onlineCountStat'), chart=$('#visitChart'); if(!vc||!rc||!oc)return;
+  try{
+    const [v,r,p]=await Promise.all([sb.from('site_visits').select('id',{count:'exact',head:true}),sb.from('profiles').select('id',{count:'exact',head:true}),sb.from('presence').select('user_id',{count:'exact',head:true}).gt('last_seen',new Date(Date.now()-60000).toISOString())]);
+    if(!v.error)vc.textContent=String(v.count||0); if(!r.error)rc.textContent=String(r.count||0); if(!p.error)oc.textContent=String(p.count||0);
+    const since=new Date(); since.setHours(0,0,0,0); since.setDate(since.getDate()-6);
+    const {data,error}=await sb.from('site_visits').select('created_at').gte('created_at',since.toISOString()).order('created_at',{ascending:true});
+    if(error)throw error; const days=[]; for(let i=0;i<7;i++){const d=new Date(since);d.setDate(since.getDate()+i);days.push({date:d,label:d.toLocaleDateString(currentLang(),{day:'numeric',month:'short'}),count:0});}
+    (data||[]).forEach(x=>{const d=new Date(x.created_at);const k=new Date(d.getFullYear(),d.getMonth(),d.getDate()).getTime();const row=days.find(z=>new Date(z.date).setHours(0,0,0,0)===k);if(row)row.count++;});
+    const max=Math.max(1,...days.map(x=>x.count)); chart.innerHTML=days.map(x=>`<div class="bar-item"><div class="bar-value">${x.count}</div><div class="bar-track"><i style="height:${Math.max(6,Math.round(x.count/max*100))}%"></i></div><small>${escapeHtml(x.label)}</small></div>`).join('');
+  }catch(e){chart.innerHTML=`<div class="empty">${escapeHtml(tr('noStats'))}</div>`;}
+}
+
+$('#languageSelect').addEventListener('change',e=>{localStorage.setItem('cb_lang',e.target.value);applyLanguage();loadStats();});
 $('#scriptForm').onsubmit=saveScript;
 $('#newScriptBtn').onclick=()=>{resetScriptForm();goTo('create');};
 $('#backToScripts').onclick=()=>goTo('workspace');
 $('#logoutBtn')?.addEventListener('click',logout);
 $('#profileLogoutBtn')?.addEventListener('click',logout);
 $('#profileCreateBtn')?.addEventListener('click',()=>goTo('create'));
-$('#chatForm').onsubmit=sendChat;
+document.querySelectorAll('.avatar-choice').forEach(b=>b.addEventListener('click',async()=>{await syncAuth();if(!currentUser)return;const avatar=b.dataset.avatar;try{const {error}=await sb.from('profiles').update({avatar_url:avatar}).eq('id',currentUser.id);if(error)throw error;$('#profileAvatar').src=avatar;}catch(e){console.error(e);}}));
 $('#loginBtn').onclick=()=>{closeMenu();openAuth('login');};
 $('#registerBtn').onclick=()=>{closeMenu();openAuth('register');};
 $('#menuLogoutBtn').onclick=()=>{closeMenu();logout();};
@@ -352,7 +385,6 @@ $('#closeModal').onclick=()=>{$('#modal').classList.add('hidden');pendingRoute=n
 $('#switchMode').onclick=()=>openAuth(mode==='login'?'register':'login');
 $('#authForm').onsubmit=submitAuth;
 $('#browseBtn').onclick=()=>goTo('scripts');
-$('#chatBtn').onclick=()=>goTo('chat');
 $('#viewAll').onclick=()=>goTo('scripts');
 $('#tutorialMenu').addEventListener('click',e=>{const b=e.target.closest('.tutorial-btn');if(b)openTutorial(Number(b.dataset.tutorial));});
 document.querySelectorAll('[data-feature-route]').forEach(b=>b.addEventListener('click',()=>goTo(b.dataset.featureRoute)));
@@ -366,23 +398,19 @@ function routePage(){
   const workspace=hash==='#workspace' || hash==='#my-scripts';
   const create=hash==='#create' || hash==='#create-script';
   const profile=hash==='#profile';
-  const chat=hash==='#chat';
   const tutorial=hash==='#scripts';
   const home=document.querySelector('#home');
   const workspaceView=document.querySelector('#workspace');
   const createView=document.querySelector('#createPage');
   const profileView=document.querySelector('#profilePage');
-  const chatView=document.querySelector('#chatPage');
-  if(home) home.classList.toggle('page-hidden',workspace||create||profile||chat);
+  if(home) home.classList.toggle('page-hidden',workspace||create||profile);
   if(workspaceView) workspaceView.classList.toggle('page-hidden',!workspace);
   if(createView) createView.classList.toggle('page-hidden',!create);
   if(profileView) profileView.classList.toggle('page-hidden',!profile);
-  if(chatView) chatView.classList.toggle('page-hidden',!chat);
-  if(workspace){ stopChatPolling(); window.scrollTo({top:0,behavior:'smooth'}); renderScriptsIfPossible(); }
-  else if(create){ stopChatPolling(); window.scrollTo({top:0,behavior:'smooth'}); renderScriptsIfPossible(); }
-  else if(profile){ stopChatPolling(); window.scrollTo({top:0,behavior:'smooth'}); loadProfile(); }
-  else if(chat){ window.scrollTo({top:0,behavior:'smooth'}); if(token){startRealtime();startChatPolling();}else{stopChatPolling();} }
-  else { stopChatPolling(); if(tutorial) setTimeout(()=>document.querySelector('#scripts')?.scrollIntoView({behavior:'smooth'}),0); else window.scrollTo({top:0,behavior:'smooth'}); }
+  if(workspace){ window.scrollTo({top:0,behavior:'smooth'}); renderScriptsIfPossible(); }
+  else if(create){ window.scrollTo({top:0,behavior:'smooth'}); renderScriptsIfPossible(); }
+  else if(profile){ window.scrollTo({top:0,behavior:'smooth'}); loadProfile(); }
+  else { if(tutorial) setTimeout(()=>document.querySelector('#scripts')?.scrollIntoView({behavior:'smooth'}),0); else window.scrollTo({top:0,behavior:'smooth'}); }
 }
 window.addEventListener('hashchange',routePage);
 
@@ -390,6 +418,9 @@ window.addEventListener('hashchange',routePage);
 const initialLang=localStorage.getItem('cb_lang') || detectLanguage();
 if(!localStorage.getItem('cb_lang')) localStorage.setItem('cb_lang',initialLang);
 applyLanguage();
+ensureVisitorId();
+recordVisit();
+loadStats();
 routePage();
 (async()=>{
   try { await syncAuth(); } catch(e) { console.error(e); }
@@ -397,6 +428,7 @@ routePage();
   applyLanguage();
   routePage();
   await loadScripts();
+  await loadStats();
   if(currentUser) startRealtime();
   sb.auth.onAuthStateChange(async (_event, session)=>{
     token=session?.access_token||null; currentUser=session?.user||null;
