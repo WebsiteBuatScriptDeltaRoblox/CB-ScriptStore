@@ -220,6 +220,8 @@ function detectLanguage(){
   }
   return 'en';
 }
+const myScriptsHomeByLang={id:'Script Saya',en:'My Scripts',es:'Mis Scripts',pt:'Meus Scripts',fil:'Aking Scripts',tr:'Scriptlerim',fr:'Mes scripts',de:'Meine Skripte',ja:'自分のスクリプト',ko:'내 스크립트',zh:'我的脚本','zh-TW':'我的腳本',ru:'Мои скрипты',hi:'मेरे स्क्रिप्ट',ar:'برامجي النصية',vi:'Script của tôi',th:'สคริปต์ของฉัน',pl:'Moje skrypty',it:'I miei script','pt-PT':'Os meus scripts'};
+for(const [lang,label] of Object.entries(myScriptsHomeByLang)){if(ui[lang])ui[lang].myScriptsButton=label;}
 function tr(k){ const d=ui[currentLang()]||ui.en||{}; const f={navWorkspace:'Script',myScripts:'My Scripts',myScriptsButton:'Lihat Script Saya',scriptCreator:'Pembuat script',websiteLink:'Link website',viewScript:'Script',exploreTitle:'Jelajahi Script',exploreDesc:'Cari script publik dan simpan favoritmu.',searchPlaceholder:'Cari script...',publicSearchPlaceholder:'Cari script publik...',historyTitle:'Riwayat',notificationsTitle:'Notifikasi',emptyPublicScripts:'Belum ada script publik.',copyRaw:'Salin Link Raw'}; return d[k] ?? ui.id?.[k] ?? f[k] ?? k; }
 function visibilityLabel(v){return v==='public'?tr('public'):v==='private'?tr('private'):v||'';}
 function tutorialData(){ return tutorialText[currentLang()] || fallbackTutorial; }
@@ -413,6 +415,7 @@ $('#menuClose').onclick=closeMenu;
 $('#menuBackdrop').onclick=closeMenu;
 $('#sideMenu').querySelectorAll('[data-menu-route]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();goTo(a.dataset.menuRoute);}));
 $('#startBtn').onclick=()=>goTo('create');
+$('#myScriptsHomeBtn').onclick=()=>goTo('workspace');
 $('#closeModal').onclick=()=>{$('#modal').classList.add('hidden');pendingRoute=null;};
 $('#switchMode').onclick=()=>openAuth(mode==='login'?'register':'login');
 $('#authForm').onsubmit=submitAuth;
