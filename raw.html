@@ -1,17 +1,9 @@
 <!doctype html>
-<html lang="id"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Raw</title><style>html,body{margin:0;padding:0;background:#fff;color:#000}pre{margin:0;padding:16px;box-sizing:border-box;white-space:pre-wrap;overflow-wrap:anywhere;font:14px/1.55 monospace;min-height:100vh}</style></head><body><pre id="code"></pre><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="config.js"></script><script>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="robots" content="noindex"><title>Raw</title></head>
+<body><p>Opening Raw…</p><script>
 const id=new URLSearchParams(location.search).get('id');
-const out=document.getElementById('code');
-async function load(){
-  if(!id){out.textContent='Script ID tidak ditemukan.';return;}
-  try{
-    const sb=supabase.createClient(window.CB_SUPABASE_URL,window.CB_SUPABASE_ANON_KEY);
-    const {data,error}=await sb.from('scripts').select('filename,code,visibility').eq('id',id).eq('visibility','public').maybeSingle();
-    if(error) throw error;
-    if(!data){out.textContent='Script publik tidak ditemukan.';return;}
-    document.title=data.filename||'Raw';
-    out.textContent=data.code||'';
-  }catch(e){console.error(e);out.textContent='Gagal memuat Raw.';}
-}
-load();
-</script></body></html>
+if(id){location.replace('https://zpomypkasmmiozandzlv.supabase.co/functions/v1/raw-script?id='+encodeURIComponent(id));}
+else{document.body.textContent='Script tidak ditemukan.';}
+</script></body>
+</html>

@@ -155,9 +155,6 @@ const statsText={
 };
 for(const [lang,vals] of Object.entries(statsText)) Object.assign(ui[lang]||{},vals);
 Object.assign(ui.id,{navWorkspace:'Script',profile:'Profil',logout:'Logout'}); Object.assign(ui.en,{navWorkspace:'Scripts',profile:'Profile',logout:'Logout'});
-const deleteConfirmText={id:{yes:'Ya, saya yakin',no:'Tidak yakin'},en:{yes:'Yes, I’m sure',no:'Not sure'},es:{yes:'Sí, estoy seguro',no:'No estoy seguro'},pt:{yes:'Sim, tenho certeza',no:'Não tenho certeza'},fil:{yes:'Oo, sigurado ako',no:'Hindi ako sigurado'},tr:{yes:'Evet, eminim',no:'Emin değilim'},fr:{yes:'Oui, je confirme',no:'Non, annuler'},de:{yes:'Ja, ich bin sicher',no:'Nein, abbrechen'},ja:{yes:'はい、削除します',no:'いいえ、やめます'},ko:{yes:'네, 삭제할게요',no:'아니요, 취소할게요'},zh:{yes:'是的，我确定',no:'不，我再想想'},'zh-TW':{yes:'是的，我確定',no:'不要，我再想想'},ru:{yes:'Да, я уверен',no:'Нет, отменить'},hi:{yes:'हाँ, मुझे यकीन है',no:'नहीं, रद्द करें'},ar:{yes:'نعم، أنا متأكد',no:'لا، إلغاء'},vi:{yes:'Có, tôi chắc chắn',no:'Không, hủy'},th:{yes:'ใช่ ฉันยืนยัน',no:'ไม่ ยกเลิก'},pl:{yes:'Tak, jestem pewien',no:'Nie, anuluj'},it:{yes:'Sì, sono sicuro',no:'No, annulla'},'pt-PT':{yes:'Sim, tenho a certeza',no:'Não, cancelar'}};
-for(const [lang,v] of Object.entries(deleteConfirmText)){if(ui[lang]){ui[lang].confirmYes=v.yes;ui[lang].confirmNo=v.no;}}
-
 
 ui.id.scriptCode='Tulis kode Luau di sini...'; ui.en.scriptCode='Write your Luau code here...';
 for(const lang of Object.keys(ui)) if(!ui[lang].scriptCode) ui[lang].scriptCode=ui.en.scriptCode;
@@ -276,6 +273,7 @@ function closeMenu(){const menu=$('#sideMenu'),back=$('#menuBackdrop'),toggle=$(
 function openMenu(){const menu=$('#sideMenu'),back=$('#menuBackdrop'),toggle=$('#menuToggle');if(menu)menu.classList.add('open');if(back)back.classList.remove('hidden');if(toggle){toggle.setAttribute('aria-expanded','true');toggle.classList.add('active');}if(menu)menu.setAttribute('aria-hidden','false');loadProfile();}
 function goTo(route){
   closeMenu();
+  if(route==='stats'){ window.location.hash='#stats'; return; }
   if((route==='create'||route==='workspace'||route==='profile') && !currentUser){ pendingRoute=route; openAuth('login'); return; }
   window.location.hash=route==='home'?'#home':'#'+route;
 }
@@ -320,7 +318,7 @@ async function renderScriptsIfPossible(){
     if(error) throw error;
     $('#scriptCount').textContent=String(rows.length);
     if(!rows.length){box.innerHTML=`<div class="empty">${escapeHtml(tr('empty'))}</div>`;return;}
-    box.innerHTML=rows.map(s=>`<article class="card"><div class="card-head"><div class="icon">&lt;/&gt;</div><div><h3>${escapeHtml(s.filename)}</h3><small>${escapeHtml(s.visibility)}</small></div></div><div class="card-foot"><span class="tag">${escapeHtml(s.visibility)}</span><div class="script-actions"><button class="mini-btn" data-edit="${s.id}">${escapeHtml(tr('edit'))}</button><button class="mini-btn danger" data-delete="${s.id}">${escapeHtml(tr('delete'))}</button>${s.visibility==='public'?`<a class="raw" href="raw.html?id=${encodeURIComponent(s.id)}" target="_blank" rel="noreferrer">${escapeHtml(tr('raw'))}</a>`:''}</div></div></article>`).join('');
+    box.innerHTML=rows.map(s=>`<article class="card"><div class="card-head"><div class="icon">&lt;/&gt;</div><div><h3>${escapeHtml(s.filename)}</h3><small>${escapeHtml(s.visibility)}</small></div></div><div class="card-foot"><span class="tag">${escapeHtml(s.visibility)}</span><div class="script-actions"><button class="mini-btn" data-edit="${s.id}">${escapeHtml(tr('edit'))}</button><button class="mini-btn danger" data-delete="${s.id}">${escapeHtml(tr('delete'))}</button>${s.visibility==='public'?`<a class="raw" href="https://zpomypkasmmiozandzlv.supabase.co/functions/v1/raw?id=${encodeURIComponent(s.id)}" target="_blank" rel="noreferrer">${escapeHtml(tr('raw'))}</a>`:''}</div></div></article>`).join('');
     box.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>editScript(rows.find(x=>String(x.id)===b.dataset.edit)));
     box.querySelectorAll('[data-delete]').forEach(b=>b.onclick=()=>deleteScript(b.dataset.delete));
   }catch(e){box.innerHTML=`<div class="empty">${escapeHtml(e.message||tr('needLoginWorkspace'))}</div>`;}
@@ -331,7 +329,7 @@ async function saveScript(e){
   e.preventDefault(); const err=$('#scriptError');err.textContent=''; await syncAuth();
   if(!token){err.textContent=tr('needLoginWorkspace');return;}
   const id=$('#scriptId').value, filename=$('#scriptFilename').value.trim(), code=$('#scriptCode').value, visibility=$('#scriptVisibility').value;
-  if(filename.length<1 || filename.length>120){err.textContent=currentLang()==='id'?'Nama file tidak valid.':'Invalid filename.';return;}
+  if(filename.length<1 || filename.length>120){err.textContent='Invalid filename.';return;}
   if(code.length>500000){err.textContent='Script terlalu panjang.';return;}
   try{
     if(!id){ const {count,error:e1}=await sb.from('scripts').select('id',{count:'exact',head:true}).eq('user_id',currentUser.id); if(e1)throw e1; if((count||0)>=50){err.textContent=currentLang()==='id'?'Maksimal 50 script per akun.':'Maximum 50 scripts per account.';return;} }
@@ -340,12 +338,11 @@ async function saveScript(e){
     else { result=await sb.from('scripts').insert({user_id:currentUser.id,filename,code,visibility}).select('id').single(); }
     if(result.error)throw result.error;
     err.style.color='#28d9a4';err.textContent=tr(id?'updated':'saved');resetScriptForm(false);await loadScripts();window.location.hash='#workspace';
-  }catch(e){err.style.color='#ff7690';err.textContent=e.message||(currentLang()==='id'?'Gagal menyimpan script.':'Failed to save script.');}
+  }catch(e){err.style.color='#ff7690';err.textContent=e.message||'Gagal menyimpan script.';}
 }
 function resetScriptForm(clearMessage=true){$('#scriptId').value='';$('#scriptFilename').value='';$('#scriptCode').value='';$('#scriptVisibility').value='private';if(clearMessage){$('#scriptError').textContent='';$('#scriptError').style.color='';}}
 function editScript(s){if(!s)return;$('#scriptId').value=s.id;$('#scriptFilename').value=s.filename;$('#scriptCode').value=s.code;$('#scriptVisibility').value=s.visibility;window.location.hash='#create';}
-function askDeleteConfirmation(){return new Promise(resolve=>{const old=document.getElementById('cbDeleteConfirm');if(old)old.remove();const overlay=document.createElement('div');overlay.id='cbDeleteConfirm';overlay.style.cssText='position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.72);padding:20px;';const box=document.createElement('div');box.style.cssText='width:min(420px,100%);background:#0b1220;border:1px solid rgba(45,156,255,.45);border-radius:18px;padding:22px;box-shadow:0 20px 70px rgba(0,0,0,.55);color:#fff;font-family:inherit;';const title=document.createElement('div');title.textContent=tr('confirmDelete');title.style.cssText='font-size:18px;font-weight:700;margin-bottom:18px;';const row=document.createElement('div');row.style.cssText='display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;';const no=document.createElement('button');no.type='button';no.textContent=tr('confirmNo');no.style.cssText='padding:11px 16px;border-radius:10px;border:1px solid #334155;background:#111827;color:#fff;cursor:pointer;';const yes=document.createElement('button');yes.type='button';yes.textContent=tr('confirmYes');yes.style.cssText='padding:11px 16px;border-radius:10px;border:0;background:#ef4444;color:#fff;font-weight:700;cursor:pointer;';const close=v=>{overlay.remove();resolve(v)};no.onclick=()=>close(false);yes.onclick=()=>close(true);overlay.onclick=e=>{if(e.target===overlay)close(false)};row.append(no,yes);box.append(title,row);overlay.append(box);document.body.append(overlay);yes.focus();});}
-async function deleteScript(id){if(!await askDeleteConfirmation())return;try{const {error}=await sb.from('scripts').delete().eq('id',id).eq('user_id',currentUser.id);if(error)throw error;$('#scriptError').style.color='#28d9a4';$('#scriptError').textContent=tr('deleted');resetScriptForm(false);await loadScripts();}catch(e){$('#scriptError').style.color='#ff7690';$('#scriptError').textContent=e.message||(currentLang()==='id'?'Gagal menghapus script.':'Delete failed.');}}
+async function deleteScript(id){if(!confirm(tr('confirmDelete')))return;try{const {error}=await sb.from('scripts').delete().eq('id',id).eq('user_id',currentUser.id);if(error)throw error;$('#scriptError').style.color='#28d9a4';$('#scriptError').textContent=tr('deleted');resetScriptForm(false);await loadScripts();}catch(e){$('#scriptError').style.color='#ff7690';$('#scriptError').textContent=e.message||'Delete failed.';}}
 async function logout(){await sb.auth.signOut();stopRealtime();token=null;currentUser=null;resetScriptForm();await loadScripts();routePage();}
 
 let presenceTimer=null, onlineTimer=null;
@@ -403,11 +400,13 @@ function routePage(){
   const create=hash==='#create' || hash==='#create-script';
   const profile=hash==='#profile';
   const tutorial=hash==='#scripts';
+  const stats=hash==='#stats';
   const home=document.querySelector('#home');
   const workspaceView=document.querySelector('#workspace');
   const createView=document.querySelector('#createPage');
   const profileView=document.querySelector('#profilePage');
   if(home) home.classList.toggle('page-hidden',workspace||create||profile);
+  if(stats) setTimeout(()=>document.querySelector('#stats')?.scrollIntoView({behavior:'smooth',block:'start'}),0);
   if(workspaceView) workspaceView.classList.toggle('page-hidden',!workspace);
   if(createView) createView.classList.toggle('page-hidden',!create);
   if(profileView) profileView.classList.toggle('page-hidden',!profile);
