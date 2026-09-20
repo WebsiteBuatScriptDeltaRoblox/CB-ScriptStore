@@ -318,11 +318,15 @@ async function loadProfile(){
 }
 function closeMenu(){const menu=$('#sideMenu'),back=$('#menuBackdrop'),toggle=$('#menuToggle');if(menu)menu.classList.remove('open');if(back)back.classList.add('hidden');if(toggle){toggle.setAttribute('aria-expanded','false');toggle.classList.remove('active');}if(menu)menu.setAttribute('aria-hidden','true');}
 function openMenu(){const menu=$('#sideMenu'),back=$('#menuBackdrop'),toggle=$('#menuToggle');if(menu)menu.classList.add('open');if(back)back.classList.remove('hidden');if(toggle){toggle.setAttribute('aria-expanded','true');toggle.classList.add('active');}if(menu)menu.setAttribute('aria-hidden','false');loadProfile();}
-function goTo(route){
+async function goTo(route){
   closeMenu();
   if(route==='stats'){ window.location.hash='#stats'; return; }
-  if((route==='create'||route==='workspace'||route==='profile') && !currentUser){ pendingRoute=route; openAuth('login'); return; }
+  if(route==='create'||route==='workspace'||route==='profile'){
+    await syncAuth();
+    if(!currentUser){ pendingRoute=route; openAuth('login'); return; }
+  }
   window.location.hash=route==='home'?'#home':'#'+route;
+  routePage();
 }
 
 async function submitAuth(e){
@@ -415,7 +419,7 @@ $('#menuClose').onclick=closeMenu;
 $('#menuBackdrop').onclick=closeMenu;
 $('#sideMenu').querySelectorAll('[data-menu-route]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();goTo(a.dataset.menuRoute);}));
 $('#startBtn').onclick=()=>goTo('create');
-$('#myScriptsHomeBtn').onclick=()=>goTo('workspace');
+$('#myScriptsHomeBtn').onclick=async()=>{ await goTo('workspace'); };
 $('#closeModal').onclick=()=>{$('#modal').classList.add('hidden');pendingRoute=null;};
 $('#switchMode').onclick=()=>openAuth(mode==='login'?'register':'login');
 $('#authForm').onsubmit=submitAuth;
