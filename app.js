@@ -12,7 +12,7 @@ let cachedOwnScripts=[];
 let cachedPublicScripts=[];
 let favoriteIds=new Set();
 function trx(key,fallback){return tr(key)||fallback||key;}
-function rawUrl(id){return `${RAW_ENDPOINT}?id=${encodeURIComponent(id)}`;}
+function rawUrl(id){return `${RAW_ENDPOINT}?id=${encodeURIComponent(id)}&lang=${encodeURIComponent(currentLang())}`;}
 async function loadFavorites(){if(!currentUser){favoriteIds=new Set();return;}const {data}=await sb.from('script_favorites').select('script_id').eq('user_id',currentUser.id);favoriteIds=new Set((data||[]).map(x=>String(x.script_id)));}
 async function toggleFavorite(id){if(!currentUser){openAuth('login');return;}const sid=String(id);if(favoriteIds.has(sid)){await sb.from('script_favorites').delete().eq('user_id',currentUser.id).eq('script_id',id);favoriteIds.delete(sid);}else{await sb.from('script_favorites').insert({user_id:currentUser.id,script_id:id});favoriteIds.add(sid);}
   await renderPublicScripts(); await renderScriptsIfPossible();}
@@ -148,26 +148,26 @@ const extraByLang={
  'pt-PT':['Os meus Scripts','Cria, edita, guarda e abre links Raw dos teus scripts.','Terminar sessão','Nome do script','Privado','Público','Guardar Script','Novo Script','Scripts guardados','novo-script.lua','Script guardado.','Script atualizado.','Script eliminado.','Eliminar este script?','Inicia sessão para usar o teu espaço de scripts.','Raw →','Editar','Eliminar']
 };
 const featureI18n={
-  id:{myScriptsButton:'Lihat Script Saya',scriptCreator:'Pembuat script',websiteLink:'Link website',viewScript:'Script',copyRaw:'Salin Link Raw'},
-  en:{myScriptsButton:'My Scripts',scriptCreator:'Script creator',websiteLink:'Website link',viewScript:'Script',copyRaw:'Copy Raw Link'},
-  es:{myScriptsButton:'Mis scripts',scriptCreator:'Creador del script',websiteLink:'Enlace del sitio web',viewScript:'Script',copyRaw:'Copiar enlace Raw'},
-  pt:{myScriptsButton:'Meus scripts',scriptCreator:'Criador do script',websiteLink:'Link do site',viewScript:'Script',copyRaw:'Copiar link Raw'},
-  fil:{myScriptsButton:'Aking Scripts',scriptCreator:'Gumawa ng script',websiteLink:'Link ng website',viewScript:'Script',copyRaw:'Kopyahin ang Raw link'},
-  tr:{myScriptsButton:'Scriptlerim',scriptCreator:'Script sahibi',websiteLink:'Web sitesi bağlantısı',viewScript:'Script',copyRaw:'Raw bağlantısını kopyala'},
-  fr:{myScriptsButton:'Mes scripts',scriptCreator:'Créateur du script',websiteLink:'Lien du site',viewScript:'Script',copyRaw:'Copier le lien Raw'},
-  de:{myScriptsButton:'Meine Skripte',scriptCreator:'Script-Ersteller',websiteLink:'Website-Link',viewScript:'Script',copyRaw:'Raw-Link kopieren'},
-  ja:{myScriptsButton:'自分のスクリプト',scriptCreator:'スクリプト作成者',websiteLink:'ウェブサイトリンク',viewScript:'スクリプト',copyRaw:'Rawリンクをコピー'},
-  ko:{myScriptsButton:'내 스크립트',scriptCreator:'스크립트 제작자',websiteLink:'웹사이트 링크',viewScript:'스크립트',copyRaw:'Raw 링크 복사'},
-  zh:{myScriptsButton:'我的脚本',scriptCreator:'脚本作者',websiteLink:'网站链接',viewScript:'脚本',copyRaw:'复制 Raw 链接'},
-  'zh-TW':{myScriptsButton:'我的腳本',scriptCreator:'腳本作者',websiteLink:'網站連結',viewScript:'腳本',copyRaw:'複製 Raw 連結'},
-  ru:{myScriptsButton:'Мои скрипты',scriptCreator:'Автор скрипта',websiteLink:'Ссылка на сайт',viewScript:'Скрипт',copyRaw:'Копировать Raw-ссылку'},
-  hi:{myScriptsButton:'मेरे स्क्रिप्ट',scriptCreator:'स्क्रिप्ट निर्माता',websiteLink:'वेबसाइट लिंक',viewScript:'स्क्रिप्ट',copyRaw:'Raw लिंक कॉपी करें'},
-  ar:{myScriptsButton:'برامجِي النصية',scriptCreator:'منشئ البرنامج النصي',websiteLink:'رابط الموقع',viewScript:'البرنامج النصي',copyRaw:'نسخ رابط Raw'},
-  vi:{myScriptsButton:'Script của tôi',scriptCreator:'Người tạo script',websiteLink:'Liên kết trang web',viewScript:'Script',copyRaw:'Sao chép liên kết Raw'},
-  th:{myScriptsButton:'สคริปต์ของฉัน',scriptCreator:'ผู้สร้างสคริปต์',websiteLink:'ลิงก์เว็บไซต์',viewScript:'สคริปต์',copyRaw:'คัดลอกลิงก์ Raw'},
-  pl:{myScriptsButton:'Moje skrypty',scriptCreator:'Twórca skryptu',websiteLink:'Link do strony',viewScript:'Skrypt',copyRaw:'Kopiuj link Raw'},
-  it:{myScriptsButton:'I miei script',scriptCreator:'Creatore dello script',websiteLink:'Link del sito',viewScript:'Script',copyRaw:'Copia link Raw'},
-  'pt-PT':{myScriptsButton:'Os meus scripts',scriptCreator:'Criador do script',websiteLink:'Ligação do site',viewScript:'Script',copyRaw:'Copiar ligação Raw'}
+  id:{myScripts:'Script Saya',myScriptsButton:'Lihat Script Saya',scriptCreator:'Pembuat script',websiteLink:'Link website',viewScript:'Script',copyRaw:'Salin Link Raw'},
+  en:{myScripts:'My Scripts',myScriptsButton:'My Scripts',scriptCreator:'Script creator',websiteLink:'Website link',viewScript:'Script',copyRaw:'Copy Raw Link'},
+  es:{myScripts:'Mis scripts',myScriptsButton:'Mis scripts',scriptCreator:'Creador del script',websiteLink:'Enlace del sitio web',viewScript:'Script',copyRaw:'Copiar enlace Raw'},
+  pt:{myScripts:'Meus scripts',myScriptsButton:'Meus scripts',scriptCreator:'Criador do script',websiteLink:'Link do site',viewScript:'Script',copyRaw:'Copiar link Raw'},
+  fil:{myScripts:'Aking Scripts',myScriptsButton:'Aking Scripts',scriptCreator:'Gumawa ng script',websiteLink:'Link ng website',viewScript:'Script',copyRaw:'Kopyahin ang Raw link'},
+  tr:{myScripts:'Scriptlerim',myScriptsButton:'Scriptlerim',scriptCreator:'Script sahibi',websiteLink:'Web sitesi bağlantısı',viewScript:'Script',copyRaw:'Raw bağlantısını kopyala'},
+  fr:{myScripts:'Mes scripts',myScriptsButton:'Mes scripts',scriptCreator:'Créateur du script',websiteLink:'Lien du site',viewScript:'Script',copyRaw:'Copier le lien Raw'},
+  de:{myScripts:'Meine Skripte',myScriptsButton:'Meine Skripte',scriptCreator:'Script-Ersteller',websiteLink:'Website-Link',viewScript:'Script',copyRaw:'Raw-Link kopieren'},
+  ja:{myScripts:'自分のスクリプト',myScriptsButton:'自分のスクリプト',scriptCreator:'スクリプト作成者',websiteLink:'ウェブサイトリンク',viewScript:'スクリプト',copyRaw:'Rawリンクをコピー'},
+  ko:{myScripts:'내 스크립트',myScriptsButton:'내 스크립트',scriptCreator:'스크립트 제작자',websiteLink:'웹사이트 링크',viewScript:'스크립트',copyRaw:'Raw 링크 복사'},
+  zh:{myScripts:'我的脚本',myScriptsButton:'我的脚本',scriptCreator:'脚本作者',websiteLink:'网站链接',viewScript:'脚本',copyRaw:'复制 Raw 链接'},
+  'zh-TW':{myScripts:'我的腳本',myScriptsButton:'我的腳本',scriptCreator:'腳本作者',websiteLink:'網站連結',viewScript:'腳本',copyRaw:'複製 Raw 連結'},
+  ru:{myScripts:'Мои скрипты',myScriptsButton:'Мои скрипты',scriptCreator:'Автор скрипта',websiteLink:'Ссылка на сайт',viewScript:'Скрипт',copyRaw:'Копировать Raw-ссылку'},
+  hi:{myScripts:'मेरे स्क्रिप्ट',myScriptsButton:'मेरे स्क्रिप्ट',scriptCreator:'स्क्रिप्ट निर्माता',websiteLink:'वेबसाइट लिंक',viewScript:'स्क्रिप्ट',copyRaw:'Raw लिंक कॉपी करें'},
+  ar:{myScripts:'برامجِي النصية',myScriptsButton:'برامجِي النصية',scriptCreator:'منشئ البرنامج النصي',websiteLink:'رابط الموقع',viewScript:'البرنامج النصي',copyRaw:'نسخ رابط Raw'},
+  vi:{myScripts:'Script của tôi',myScriptsButton:'Script của tôi',scriptCreator:'Người tạo script',websiteLink:'Liên kết trang web',viewScript:'Script',copyRaw:'Sao chép liên kết Raw'},
+  th:{myScripts:'สคริปต์ของฉัน',myScriptsButton:'สคริปต์ของฉัน',scriptCreator:'ผู้สร้างสคริปต์',websiteLink:'ลิงก์เว็บไซต์',viewScript:'สคริปต์',copyRaw:'คัดลอกลิงก์ Raw'},
+  pl:{myScripts:'Moje skrypty',myScriptsButton:'Moje skrypty',scriptCreator:'Twórca skryptu',websiteLink:'Link do strony',viewScript:'Skrypt',copyRaw:'Kopiuj link Raw'},
+  it:{myScripts:'I miei script',myScriptsButton:'I miei script',scriptCreator:'Creatore dello script',websiteLink:'Link del sito',viewScript:'Script',copyRaw:'Copia link Raw'},
+  'pt-PT':{myScripts:'Os meus scripts',myScriptsButton:'Os meus scripts',scriptCreator:'Criador do script',websiteLink:'Ligação do site',viewScript:'Script',copyRaw:'Copiar ligação Raw'}
 };
 function applyFeatureTranslations(){const d=featureI18n[currentLang()]||featureI18n.en; Object.assign(ui[currentLang()]||{},d);}
 const extraKeys=['workspaceTitle','workspaceDesc','logout','scriptFilename','private','public','saveScript','newScript','savedScripts','newScriptName','saved','updated','deleted','confirmDelete','needLoginWorkspace','raw','edit','delete'];
@@ -416,7 +416,6 @@ $('#menuClose').onclick=closeMenu;
 $('#menuBackdrop').onclick=closeMenu;
 $('#sideMenu').querySelectorAll('[data-menu-route]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();goTo(a.dataset.menuRoute);}));
 $('#startBtn').onclick=()=>goTo('create');
-$('#myScriptsBtn').onclick=()=>goTo('workspace');
 $('#closeModal').onclick=()=>{$('#modal').classList.add('hidden');pendingRoute=null;};
 $('#switchMode').onclick=()=>openAuth(mode==='login'?'register':'login');
 $('#authForm').onsubmit=submitAuth;
