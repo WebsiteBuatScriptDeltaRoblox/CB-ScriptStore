@@ -21,7 +21,8 @@
     <div class="side-menu-head"><div class="side-user"><img src="logo.png" alt=""><div><strong id="menuUsername">Guest</strong><small id="menuStatus">Not logged in</small></div></div><button class="menu-close" id="menuClose">×</button></div>
     <nav class="side-nav">
       <a href="#home" data-menu-route="home">⌂ <span data-i18n="navHome">Beranda</span></a>
-      <a href="#workspace" data-menu-route="workspace">⌘ <span data-i18n="navWorkspace">Script</span></a>
+      <a href="#explore" data-menu-route="explore">⌕ <span data-i18n="navWorkspace">Script</span></a>
+      <a href="#workspace" data-menu-route="workspace">▣ <span data-i18n="myScripts">My Scripts</span></a>
       <a href="#create" data-menu-route="create">✎ <span data-i18n="createScript">Buat Script</span></a>
       <a href="#scripts" data-menu-route="scripts">◉ <span data-i18n="navScripts">Tutorial</span></a>
       <a href="#profile" data-menu-route="profile">♙ <span data-i18n="profile">Profil</span></a>
@@ -55,9 +56,17 @@
     <section class="scripts-section" id="scripts"><div class="section-title"><div><h2>ϟ <span data-i18n="howTitle">How to Create a Script</span></h2><p data-i18n="howDesc">Belajar membuat script dari nol dengan tutorial yang mudah dipahami, lengkap dengan contoh, kegunaan, dan latihan.</p></div><button class="btn ghost" id="viewAll"><span data-i18n="viewAll">Lihat Semua →</span></button></div><div class="tutorial-grid" id="tutorialMenu"></div></section>
   </main>
 
+  <section class="workspace-section page-view page-hidden" id="explorePage">
+    <div class="section-title"><div><h2>🔎 <span data-i18n="exploreTitle">Jelajahi Script</span></h2><p data-i18n="exploreDesc">Cari script publik dan simpan favoritmu.</p></div></div>
+    <div class="tool-row"><input id="publicSearch" class="tool-input" placeholder="Cari script publik..." data-i18n-placeholder="publicSearchPlaceholder"><select id="publicCategory" class="tool-select"><option value="all">Semua kategori</option></select></div>
+    <div id="publicCards" class="public-script-grid"></div>
+  </section>
+
   <section class="workspace-section page-view page-hidden" id="workspace">
     <div class="section-title"><div><h2>⌘ <span data-i18n="workspaceTitle">Script</span></h2><p data-i18n="workspaceDesc">Lihat dan kelola script yang sudah kamu simpan.</p></div></div>
+    <div class="tool-row"><input id="scriptSearch" class="tool-input" placeholder="Cari script..." data-i18n-placeholder="searchPlaceholder"><select id="scriptFilter" class="tool-select"><option value="all">Semua</option><option value="public">Public</option><option value="private">Private</option><option value="favorites">Favorit</option></select></div>
     <div class="saved-scripts full-scripts"><div class="saved-head"><h3 data-i18n="savedScripts">Saved Scripts</h3><span id="scriptCount">0</span></div><div id="cards"></div></div>
+    <div class="saved-scripts full-scripts"><div class="saved-head"><h3>🕘 <span data-i18n="historyTitle">Riwayat</span></h3></div><div id="historyCards" class="history-list"></div></div>
   </section>
 
   <section class="create-page page-view page-hidden" id="createPage">
@@ -66,6 +75,7 @@
       <input type="hidden" id="scriptId">
       <input id="scriptFilename" maxlength="120" placeholder="Script filename" data-i18n-placeholder="scriptFilename" required>
       <select id="scriptVisibility"><option value="private" data-i18n="private">Private</option><option value="public" data-i18n="public">Public</option></select>
+      <input id="scriptTags" maxlength="200" placeholder="Tag/kategori (contoh: fly, gui, tutorial)" data-i18n-placeholder="tagsPlaceholder">
       <textarea id="scriptCode" placeholder="Write your Luau code here..."></textarea>
       <div class="editor-actions"><button class="btn primary" type="submit" data-i18n="saveScript">Save Script</button><button class="btn ghost" type="button" id="backToScripts" data-i18n="navWorkspace">Script</button></div>
       <div class="error" id="scriptError"></div>
@@ -77,6 +87,7 @@
       <div class="avatar-wrap"><img src="logo.png" alt="CB ScriptStore" class="profile-avatar" id="profileAvatar"><div class="avatar-options" id="avatarOptions"><button type="button" class="avatar-choice" data-avatar="profil1.png"><img src="profil1.png" alt="Profil 1"></button><button type="button" class="avatar-choice" data-avatar="profil2.png"><img src="profil2.png" alt="Profil 2"></button><button type="button" class="avatar-choice" data-avatar="profil3.png"><img src="profil3.png" alt="Profil 3"></button><button type="button" class="avatar-choice" data-avatar="profil4.png"><img src="profil4.png" alt="Profil 4"></button><button type="button" class="avatar-choice" data-avatar="profil5.png"><img src="profil5.png" alt="Profil 5"></button></div></div>
       <div class="profile-info"><span class="profile-label" data-i18n="profile">Profil</span><h2 id="profileUsername">Guest</h2><p id="profileEmail">Login untuk melihat profil.</p></div>
       <div class="profile-actions"><button class="btn primary" id="profileCreateBtn" data-i18n="createScript">Buat Script</button><button class="btn ghost" id="profileLogoutBtn" data-i18n="logout">Logout</button></div>
+      <div class="profile-notifications"><h3>🔔 <span data-i18n="notificationsTitle">Notifikasi</span></h3><div id="notificationsList" class="notification-list"></div></div>
     </div>
   </section>
 

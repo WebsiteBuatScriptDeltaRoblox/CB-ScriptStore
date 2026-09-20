@@ -5,6 +5,24 @@ let currentUser = null;
 let pendingRoute = null;
 const sb = window.supabase.createClient(window.CB_SUPABASE_URL, window.CB_SUPABASE_ANON_KEY);
 
+
+const RAW_ENDPOINT='https://zpomypkasmmiozandzlv.supabase.co/functions/v1/raw-script';
+const SITE_URL='https://websitebuatscriptdeltaroblox.github.io/CB-ScriptStore/';
+let cachedOwnScripts=[];
+let cachedPublicScripts=[];
+let favoriteIds=new Set();
+function trx(key,fallback){return tr(key)||fallback||key;}
+function scriptTags(s){return String(s.tags||'').split(',').map(x=>x.trim()).filter(Boolean);}
+function rawUrl(id){return `${RAW_ENDPOINT}?id=${encodeURIComponent(id)}`;}
+async function loadFavorites(){if(!currentUser){favoriteIds=new Set();return;}const {data}=await sb.from('script_favorites').select('script_id').eq('user_id',currentUser.id);favoriteIds=new Set((data||[]).map(x=>String(x.script_id)));}
+async function toggleFavorite(id){if(!currentUser){openAuth('login');return;}const sid=String(id);if(favoriteIds.has(sid)){await sb.from('script_favorites').delete().eq('user_id',currentUser.id).eq('script_id',id);favoriteIds.delete(sid);}else{await sb.from('script_favorites').insert({user_id:currentUser.id,script_id:id});favoriteIds.add(sid);}
+  await renderPublicScripts(); await renderScriptsIfPossible();}
+async function recordScriptView(id){try{await sb.from('script_views').insert({script_id:id,user_id:currentUser?.id||null,visitor_id:ensureVisitorId()});await sb.rpc('increment_script_view',{p_script_id:id});}catch(_){} if(currentUser){try{await sb.from('script_history').upsert({user_id:currentUser.id,script_id:id,last_viewed_at:new Date().toISOString()},{onConflict:'user_id,script_id'});}catch(_){}}}
+async function reportScript(id){if(!currentUser){openAuth('login');return;}const reason=prompt(currentLang()==='id'?'Alasan laporan:':'Report reason:');if(!reason)return;const {error}=await sb.from('script_reports').insert({script_id:id,reporter_id:currentUser.id,reason:reason.slice(0,500)});if(!error)alert(currentLang()==='id'?'Laporan terkirim.':'Report sent.');}
+async function renderPublicScripts(){const box=$('#publicCards');if(!box)return;try{await syncAuth();await loadFavorites();let q=$('#publicSearch')?.value.trim().toLowerCase()||'',cat=$('#publicCategory')?.value||'all';let {data,error}=await sb.from('scripts').select('id,filename,code,visibility,tags,created_at,user_id,view_count').eq('visibility','public').order('created_at',{ascending:false}).limit(100);if(error)throw error;cachedPublicScripts=data||[];const ids=[...new Set(cachedPublicScripts.map(x=>x.user_id).filter(Boolean))];let profiles=[];if(ids.length){const pr=await sb.from('profiles').select('id,username').in('id',ids);profiles=pr.data||[];}const pm=new Map(profiles.map(x=>[x.id,x.username]));cachedPublicScripts.forEach(x=>x.profiles={username:pm.get(x.user_id)||'Unknown'});const cats=[...new Set(cachedPublicScripts.flatMap(scriptTags))];const sel=$('#publicCategory');if(sel){const old=sel.value;sel.innerHTML='<option value="all">Semua kategori</option>'+cats.map(c=>`<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');sel.value=cats.includes(old)?old:'all';cat=sel.value;}let rows=cachedPublicScripts.filter(s=>(!q||(s.filename+' '+s.tags+' '+(s.profiles?.username||'')).toLowerCase().includes(q))&&(cat==='all'||scriptTags(s).includes(cat)));if(!rows.length){box.innerHTML=`<div class="empty">${escapeHtml(tr('emptyPublicScripts')||'Belum ada script publik.')}</div>`;return;}box.innerHTML=rows.map(s=>{const owner=s.profiles?.username||'Unknown';const fav=favoriteIds.has(String(s.id));return `<article class="public-card"><h3>${escapeHtml(s.filename)}</h3><div class="public-meta">@${escapeHtml(owner)} · 👁 ${Number(s.view_count||0)}</div><div class="tag-list">${scriptTags(s).map(t=>`<span>${escapeHtml(t)}</span>`).join('')}</div><div class="script-actions"><a class="raw mini-btn" href="${rawUrl(s.id)}" target="_blank" rel="noreferrer">Raw</a><button class="mini-btn" data-copy-public="${s.id}">Salin Link Raw</button><button class="mini-btn ${fav?'active':''}" data-fav="${s.id}">${fav?'★':'☆'}</button><button class="mini-btn" data-report="${s.id}">⚑</button></div></article>`}).join('');box.querySelectorAll('[data-fav]').forEach(b=>b.onclick=()=>toggleFavorite(b.dataset.fav));box.querySelectorAll('[data-report]').forEach(b=>b.onclick=()=>reportScript(b.dataset.report));box.querySelectorAll('[data-copy-public]').forEach(b=>b.onclick=()=>navigator.clipboard.writeText(rawUrl(b.dataset.copyPublic)));box.querySelectorAll('a.raw').forEach(a=>a.addEventListener('click',()=>recordScriptView(a.href.split('id=')[1])));}catch(e){box.innerHTML=`<div class="empty">${escapeHtml(e.message||'Gagal memuat script publik.')}</div>`;}}
+async function loadHistory(){const box=$('#historyCards');if(!box||!currentUser)return;const {data}=await sb.from('script_history').select('last_viewed_at, scripts(id,filename,visibility)').eq('user_id',currentUser.id).order('last_viewed_at',{ascending:false}).limit(20);box.innerHTML=(data||[]).map(x=>`<div class="history-item"><b>${escapeHtml(x.scripts?.filename||'Script')}</b><div class="history-meta">${escapeHtml(new Date(x.last_viewed_at).toLocaleString())}</div></div>`).join('')||`<div class="empty">Belum ada riwayat.</div>`;}
+async function loadNotifications(){const box=$('#notificationsList');if(!box||!currentUser)return;const {data}=await sb.from('notifications').select('*').eq('user_id',currentUser.id).order('created_at',{ascending:false}).limit(15);box.innerHTML=(data||[]).map(n=>`<div class="notification-item ${n.read_at?'':'unread'}"><b>${escapeHtml(n.title||'Notifikasi')}</b><div>${escapeHtml(n.message||'')}</div><small>${escapeHtml(new Date(n.created_at).toLocaleString())}</small></div>`).join('')||'<div class="empty">Belum ada notifikasi.</div>';}
+
 function friendlyAuthError(error){
   const m = String(error?.message || error || '');
   if (/already registered|already exists/i.test(m)) return 'Username sudah dipakai. Silakan gunakan username lain.';
@@ -178,7 +196,7 @@ function detectLanguage(){
   }
   return 'en';
 }
-function tr(k){ const d=ui[currentLang()]||ui.en; return d[k] ?? ui.en[k] ?? k; }
+function tr(k){ const d=ui[currentLang()]||ui.en||{}; const f={navWorkspace:'Script',myScripts:'My Scripts',exploreTitle:'Jelajahi Script',exploreDesc:'Cari script publik dan simpan favoritmu.',searchPlaceholder:'Cari script...',publicSearchPlaceholder:'Cari script publik...',tagsPlaceholder:'Tag/kategori (contoh: fly, gui, tutorial)',historyTitle:'Riwayat',notificationsTitle:'Notifikasi',emptyPublicScripts:'Belum ada script publik.'}; return d[k] ?? ui.id?.[k] ?? f[k] ?? k; }
 function tutorialData(){ return tutorialText[currentLang()] || fallbackTutorial; }
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));}
 
@@ -190,6 +208,8 @@ function renderTutorials(){
     return `<article class="tutorial-card"><div class="tutorial-icon">${t.icon}</div><div><span class="tutorial-level">${escapeHtml(x[0])}</span><h3>${escapeHtml(x[0].replace(/^(Level \d+ — |Nivel \d+ — |Nível \d+ — |Poziom \d+ — |Livello \d+ — |Seviye \d+ — |Cấp \d+ — |ระดับ \d+ — |レベル\d+ — |레벨 \d+ — |第\d+级 — |第\d+級 — |Уровень \d+ — |स्तर \d+ — |المستوى \d+ — )/,'').trim())}</h3><p>${escapeHtml(x[1])}</p><button class="tutorial-btn" data-tutorial="${i}">${escapeHtml(tr('learn'))}</button></div></article>`;
   }).join('');
 }
+
+async function loadExtras(){await renderPublicScripts();if(currentUser){await loadFavorites();await loadHistory();await loadNotifications();}}
 
 function updateMenuAuth(){
   const logged=!!currentUser;
@@ -307,54 +327,29 @@ async function submitAuth(e){
 }
 
 async function renderScriptsIfPossible(){
-  const box=$('#cards'); if(!box) return;
-  await syncAuth();
-  if(!token){
-    box.innerHTML=`<div class="empty">${escapeHtml(tr('needLoginWorkspace'))}</div>`;
-    $('#scriptCount').textContent='0'; return;
-  }
-  try{
-    const {data:rows,error}=await sb.from('scripts').select('id,filename,visibility,created_at,updated_at,code').eq('user_id',currentUser.id).order('updated_at',{ascending:false}).order('id',{ascending:false});
-    if(error) throw error;
-    $('#scriptCount').textContent=String(rows.length);
-    if(!rows.length){box.innerHTML=`<div class="empty">${escapeHtml(tr('empty'))}</div>`;return;}
-    box.innerHTML=rows.map(s=>{const raw=s.visibility==='public'?`<a class="raw" href="https://zpomypkasmmiozandzlv.supabase.co/functions/v1/raw-script?id=${encodeURIComponent(s.id)}" target="_blank" rel="noreferrer">${escapeHtml(tr('raw'))}</a><button class="mini-btn" data-copy-raw="${s.id}">${escapeHtml(copyRawLabel())}</button>`:''; return `<article class="card"><div class="card-head"><div class="icon">&lt;/&gt;</div><div><h3>${escapeHtml(s.filename)}</h3><small>${escapeHtml(s.visibility)}</small></div></div><div class="card-foot"><span class="tag">${escapeHtml(s.visibility)}</span><div class="script-actions"><button class="mini-btn" data-edit="${s.id}">${escapeHtml(tr('edit'))}</button><button class="mini-btn danger" data-delete="${s.id}">${escapeHtml(tr('delete'))}</button>${raw}</div></div></article>`;}).join('');
-    box.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>editScript(rows.find(x=>String(x.id)===b.dataset.edit)));
-    box.querySelectorAll('[data-delete]').forEach(b=>b.onclick=()=>deleteScript(b.dataset.delete));
-    box.querySelectorAll('[data-copy-raw]').forEach(b=>b.onclick=()=>copyRawLink(b.dataset.copyRaw));
-  }catch(e){box.innerHTML=`<div class="empty">${escapeHtml(e.message||tr('needLoginWorkspace'))}</div>`;}
-}
-function copyRawLabel(){
-  const l=currentLang();
-  return ({id:'Salin Link Raw',en:'Copy Raw Link',es:'Copiar enlace Raw',pt:'Copiar link Raw',fil:'Kopyahin ang Raw Link',tr:'Raw Bağlantısını Kopyala',fr:'Copier le lien Raw',de:'Raw-Link kopieren',ja:'Rawリンクをコピー',ko:'Raw 링크 복사',zh:'复制 Raw 链接','zh-TW':'複製 Raw 連結',ru:'Копировать Raw-ссылку',hi:'Raw लिंक कॉपी करें',ar:'نسخ رابط Raw',vi:'Sao chép liên kết Raw',th:'คัดลอกลิงก์ Raw',pl:'Kopiuj link Raw',it:'Copia link Raw','pt-PT':'Copiar link Raw'}[l] || 'Copy Raw Link');
-}
-async function copyRawLink(id){
-  const url=`https://zpomypkasmmiozandzlv.supabase.co/functions/v1/raw-script?id=${encodeURIComponent(id)}`;
-  try{
-    if(navigator.clipboard && window.isSecureContext){ await navigator.clipboard.writeText(url); }
-    else { const ta=document.createElement('textarea');ta.value=url;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove(); }
-    toast(currentLang()==='id'?'Link Raw berhasil disalin.':'Raw link copied.');
-  }catch(e){ toast(currentLang()==='id'?'Gagal menyalin link Raw.':'Could not copy Raw link.'); }
+  const box=$('#cards'); if(!box) return; await syncAuth();
+  if(!token){box.innerHTML=`<div class="empty">${escapeHtml(tr('needLoginWorkspace'))}</div>`;$('#scriptCount').textContent='0';return;}
+  try{await loadFavorites();const {data:rows,error}=await sb.from('scripts').select('id,filename,visibility,created_at,updated_at,code,tags,view_count').eq('user_id',currentUser.id).order('updated_at',{ascending:false}).order('id',{ascending:false});if(error)throw error;cachedOwnScripts=rows||[];const q=($('#scriptSearch')?.value||'').trim().toLowerCase(),f=$('#scriptFilter')?.value||'all';let list=cachedOwnScripts.filter(s=>(!q||(s.filename+' '+s.tags).toLowerCase().includes(q))&&(f==='all'||s.visibility===f||(f==='favorites'&&favoriteIds.has(String(s.id)))));$('#scriptCount').textContent=String(list.length);if(!list.length){box.innerHTML=`<div class="empty">${escapeHtml(tr('empty'))}</div>`;return;}box.innerHTML=list.map(s=>`<article class="card"><div class="card-head"><div class="icon">&lt;/&gt;</div><div><h3>${escapeHtml(s.filename)}</h3><small>${escapeHtml(s.visibility)} · 👁 ${Number(s.view_count||0)}</small><div class="tag-list">${scriptTags(s).map(t=>`<span>${escapeHtml(t)}</span>`).join('')}</div></div></div><div class="card-foot"><span class="tag">${escapeHtml(s.visibility)}</span><div class="script-actions"><button class="mini-btn" data-edit="${s.id}">${escapeHtml(tr('edit'))}</button><button class="mini-btn danger" data-delete="${s.id}">${escapeHtml(tr('delete'))}</button>${s.visibility==='public'?`<a class="raw mini-btn" href="${rawUrl(s.id)}" target="_blank" rel="noreferrer">${escapeHtml(tr('raw'))}</a><button class="mini-btn" data-copy="${s.id}">Salin Link Raw</button>`:''}<button class="mini-btn ${favoriteIds.has(String(s.id))?'active':''}" data-fav="${s.id}">${favoriteIds.has(String(s.id))?'★':'☆'}</button></div></div></article>`).join('');box.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>editScript(list.find(x=>String(x.id)===b.dataset.edit)));box.querySelectorAll('[data-delete]').forEach(b=>b.onclick=()=>deleteScript(b.dataset.delete));box.querySelectorAll('[data-fav]').forEach(b=>b.onclick=()=>toggleFavorite(b.dataset.fav));box.querySelectorAll('[data-copy]').forEach(b=>b.onclick=()=>navigator.clipboard.writeText(rawUrl(b.dataset.copy)));await loadHistory();}catch(e){box.innerHTML=`<div class="empty">${escapeHtml(e.message||tr('needLoginWorkspace'))}</div>`;}
 }
 async function loadScripts(){ await renderScriptsIfPossible(); }
 
 async function saveScript(e){
   e.preventDefault(); const err=$('#scriptError');err.textContent=''; await syncAuth();
   if(!token){err.textContent=tr('needLoginWorkspace');return;}
-  const id=$('#scriptId').value, filename=$('#scriptFilename').value.trim(), code=$('#scriptCode').value, visibility=$('#scriptVisibility').value;
+  const id=$('#scriptId').value, filename=$('#scriptFilename').value.trim(), code=$('#scriptCode').value, visibility=$('#scriptVisibility').value, tags=$('#scriptTags').value.trim();
   if(filename.length<1 || filename.length>120){err.textContent='Invalid filename.';return;}
   if(code.length>500000){err.textContent='Script terlalu panjang.';return;}
   try{
     if(!id){ const {count,error:e1}=await sb.from('scripts').select('id',{count:'exact',head:true}).eq('user_id',currentUser.id); if(e1)throw e1; if((count||0)>=50){err.textContent=currentLang()==='id'?'Maksimal 50 script per akun.':'Maximum 50 scripts per account.';return;} }
     let result;
-    if(id){ result=await sb.from('scripts').update({filename,code,visibility,updated_at:new Date().toISOString()}).eq('id',id).eq('user_id',currentUser.id).select('id').single(); }
-    else { result=await sb.from('scripts').insert({user_id:currentUser.id,filename,code,visibility}).select('id').single(); }
+    if(id){ result=await sb.from('scripts').update({filename,code,visibility,tags,updated_at:new Date().toISOString()}).eq('id',id).eq('user_id',currentUser.id).select('id').single(); }
+    else { result=await sb.from('scripts').insert({user_id:currentUser.id,filename,code,visibility,tags}).select('id').single(); }
     if(result.error)throw result.error;
     err.style.color='#28d9a4';err.textContent=tr(id?'updated':'saved');resetScriptForm(false);await loadScripts();window.location.hash='#workspace';
   }catch(e){err.style.color='#ff7690';err.textContent=e.message||'Gagal menyimpan script.';}
 }
-function resetScriptForm(clearMessage=true){$('#scriptId').value='';$('#scriptFilename').value='';$('#scriptCode').value='';$('#scriptVisibility').value='private';if(clearMessage){$('#scriptError').textContent='';$('#scriptError').style.color='';}}
-function editScript(s){if(!s)return;$('#scriptId').value=s.id;$('#scriptFilename').value=s.filename;$('#scriptCode').value=s.code;$('#scriptVisibility').value=s.visibility;window.location.hash='#create';}
+function resetScriptForm(clearMessage=true){$('#scriptId').value='';$('#scriptFilename').value='';$('#scriptCode').value='';$('#scriptTags').value='';$('#scriptVisibility').value='private';if(clearMessage){$('#scriptError').textContent='';$('#scriptError').style.color='';}}
+function editScript(s){if(!s)return;$('#scriptId').value=s.id;$('#scriptFilename').value=s.filename;$('#scriptCode').value=s.code;$('#scriptVisibility').value=s.visibility;$('#scriptTags').value=s.tags||'';window.location.hash='#create';}
 async function deleteScript(id){if(!confirm(tr('confirmDelete')))return;try{const {error}=await sb.from('scripts').delete().eq('id',id).eq('user_id',currentUser.id);if(error)throw error;$('#scriptError').style.color='#28d9a4';$('#scriptError').textContent=tr('deleted');resetScriptForm(false);await loadScripts();}catch(e){$('#scriptError').style.color='#ff7690';$('#scriptError').textContent=e.message||'Delete failed.';}}
 async function logout(){await sb.auth.signOut();stopRealtime();token=null;currentUser=null;resetScriptForm();await loadScripts();routePage();}
 
@@ -399,6 +394,7 @@ $('#closeModal').onclick=()=>{$('#modal').classList.add('hidden');pendingRoute=n
 $('#switchMode').onclick=()=>openAuth(mode==='login'?'register':'login');
 $('#authForm').onsubmit=submitAuth;
 $('#browseBtn').onclick=()=>goTo('scripts');
+$('#scriptSearch')?.addEventListener('input',renderScriptsIfPossible);$('#scriptFilter')?.addEventListener('change',renderScriptsIfPossible);$('#publicSearch')?.addEventListener('input',renderPublicScripts);$('#publicCategory')?.addEventListener('change',renderPublicScripts);
 $('#viewAll').onclick=()=>goTo('scripts');
 $('#tutorialMenu').addEventListener('click',e=>{const b=e.target.closest('.tutorial-btn');if(b)openTutorial(Number(b.dataset.tutorial));});
 document.querySelectorAll('[data-feature-route]').forEach(b=>b.addEventListener('click',()=>goTo(b.dataset.featureRoute)));
@@ -410,20 +406,24 @@ window.addEventListener('keydown',e=>{if(e.key==='Escape'){closeTutorial();close
 function routePage(){
   const hash=window.location.hash || '#home';
   const workspace=hash==='#workspace' || hash==='#my-scripts';
+  const explore=hash==='#explore';
   const create=hash==='#create' || hash==='#create-script';
   const profile=hash==='#profile';
   const tutorial=hash==='#scripts';
   const stats=hash==='#stats';
   const home=document.querySelector('#home');
+  const exploreView=document.querySelector('#explorePage');
   const workspaceView=document.querySelector('#workspace');
   const createView=document.querySelector('#createPage');
   const profileView=document.querySelector('#profilePage');
   if(home) home.classList.toggle('page-hidden',workspace||create||profile);
   if(stats) setTimeout(()=>document.querySelector('#stats')?.scrollIntoView({behavior:'smooth',block:'start'}),0);
+  if(exploreView) exploreView.classList.toggle('page-hidden',!explore);
   if(workspaceView) workspaceView.classList.toggle('page-hidden',!workspace);
   if(createView) createView.classList.toggle('page-hidden',!create);
   if(profileView) profileView.classList.toggle('page-hidden',!profile);
-  if(workspace){ window.scrollTo({top:0,behavior:'smooth'}); renderScriptsIfPossible(); }
+  if(explore){ window.scrollTo({top:0,behavior:'smooth'}); renderPublicScripts(); }
+  else if(workspace){ window.scrollTo({top:0,behavior:'smooth'}); renderScriptsIfPossible(); }
   else if(create){ window.scrollTo({top:0,behavior:'smooth'}); renderScriptsIfPossible(); }
   else if(profile){ window.scrollTo({top:0,behavior:'smooth'}); loadProfile(); }
   else { if(tutorial) setTimeout(()=>document.querySelector('#scripts')?.scrollIntoView({behavior:'smooth'}),0); else window.scrollTo({top:0,behavior:'smooth'}); }
