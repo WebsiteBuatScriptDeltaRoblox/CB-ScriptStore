@@ -58,7 +58,7 @@
 
   <section class="workspace-section page-view page-hidden" id="explorePage">
     <div class="section-title"><div><h2>🔎 <span data-i18n="exploreTitle">Jelajahi Script</span></h2><p data-i18n="exploreDesc">Cari script publik dan simpan favoritmu.</p></div></div>
-    <div class="tool-row"><input id="publicSearch" class="tool-input" placeholder="Cari script publik..." data-i18n-placeholder="publicSearchPlaceholder"><select id="publicCategory" class="tool-select"><option value="all">Semua kategori</option></select></div>
+    <div class="tool-row"><input id="publicSearch" class="tool-input" placeholder="Cari script publik..." data-i18n-placeholder="publicSearchPlaceholder"></div>
     <div id="publicCards" class="public-script-grid"></div>
   </section>
 
@@ -75,7 +75,6 @@
       <input type="hidden" id="scriptId">
       <input id="scriptFilename" maxlength="120" placeholder="Script filename" data-i18n-placeholder="scriptFilename" required>
       <select id="scriptVisibility"><option value="private" data-i18n="private">Private</option><option value="public" data-i18n="public">Public</option></select>
-      <input id="scriptTags" maxlength="200" placeholder="Tag/kategori (contoh: fly, gui, tutorial)" data-i18n-placeholder="tagsPlaceholder">
       <textarea id="scriptCode" placeholder="Write your Luau code here..."></textarea>
       <div class="editor-actions"><button class="btn primary" type="submit" data-i18n="saveScript">Save Script</button><button class="btn ghost" type="button" id="backToScripts" data-i18n="navWorkspace">Script</button></div>
       <div class="error" id="scriptError"></div>
