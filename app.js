@@ -175,25 +175,25 @@ for(const [lang,vals] of Object.entries(extraByLang)) vals.forEach((v,i)=>ui[lan
 const copyRawByLang={id:'Salin Link Raw',en:'Copy Raw Link',es:'Copiar enlace Raw',pt:'Copiar link Raw',fil:'Kopyahin ang Raw Link',tr:'Raw Bağlantısını Kopyala',fr:'Copier le lien Raw',de:'Raw-Link kopieren',ja:'Rawリンクをコピー',ko:'Raw 링크 복사',zh:'复制 Raw 链接','zh-TW':'複製 Raw 連結',ru:'Копировать Raw-ссылку',hi:'Raw लिंक कॉपी करें',ar:'نسخ رابط Raw',vi:'Sao chép liên kết Raw',th:'คัดลอกลิงก์ Raw',pl:'Kopiuj link Raw',it:'Copia link Raw','pt-PT':'Copiar link Raw'};
 for(const [lang,text] of Object.entries(copyRawByLang)){if(ui[lang])ui[lang].copyRaw=text;}
 const statsText={
- id:{statsTitle:'Statistik Website',statsDesc:'Lihat kunjungan, jumlah akun terdaftar, dan pengguna online.',totalVisits:'Total Kunjungan',registeredUsers:'Total Terdaftar',onlineUsers:'Online Sekarang',visitChartTitle:'Grafik Kunjungan',last7Days:'7 hari terakhir',loadingStats:'Memuat statistik...',noStats:'Belum ada data kunjungan.',profileSelect:'Pilih Foto Profil',saved:'Tersimpan.'},
- en:{statsTitle:'Website Statistics',statsDesc:'View visits, registered accounts, and online users.',totalVisits:'Total Visits',registeredUsers:'Registered Users',onlineUsers:'Online Now',visitChartTitle:'Visit Graph',last7Days:'Last 7 days',loadingStats:'Loading statistics...',noStats:'No visit data yet.',profileSelect:'Choose Profile Photo',saved:'Saved.'},
- es:{statsTitle:'Estadísticas del sitio',statsDesc:'Visitas, cuentas registradas y usuarios en línea.',totalVisits:'Visitas totales',registeredUsers:'Usuarios registrados',onlineUsers:'En línea ahora',visitChartTitle:'Gráfico de visitas',last7Days:'Últimos 7 días',loadingStats:'Cargando estadísticas...',noStats:'Aún no hay visitas.',profileSelect:'Elegir foto de perfil',saved:'Guardado.'},
- pt:{statsTitle:'Estatísticas do site',statsDesc:'Veja visitas, contas registradas e usuários online.',totalVisits:'Total de visitas',registeredUsers:'Usuários registrados',onlineUsers:'Online agora',visitChartTitle:'Gráfico de visitas',last7Days:'Últimos 7 dias',loadingStats:'Carregando estatísticas...',noStats:'Ainda não há visitas.',profileSelect:'Escolher foto de perfil',saved:'Salvo.'},
- ja:{statsTitle:'サイト統計',statsDesc:'訪問数、登録アカウント、オンラインユーザーを表示します。',totalVisits:'総訪問数',registeredUsers:'登録ユーザー',onlineUsers:'オンライン',visitChartTitle:'訪問グラフ',last7Days:'過去7日間',loadingStats:'統計を読み込み中...',noStats:'訪問データはありません。',profileSelect:'プロフィール写真を選択',saved:'保存しました。'},
- ko:{statsTitle:'사이트 통계',statsDesc:'방문 수, 가입 계정, 온라인 사용자를 확인하세요.',totalVisits:'총 방문',registeredUsers:'가입 사용자',onlineUsers:'현재 온라인',visitChartTitle:'방문 그래프',last7Days:'최근 7일',loadingStats:'통계 로딩 중...',noStats:'방문 데이터가 없습니다.',profileSelect:'프로필 사진 선택',saved:'저장되었습니다.'},
- zh:{statsTitle:'网站统计',statsDesc:'查看访问量、注册账户和在线用户。',totalVisits:'总访问量',registeredUsers:'注册用户',onlineUsers:'当前在线',visitChartTitle:'访问图表',last7Days:'最近7天',loadingStats:'正在加载统计...',noStats:'暂无访问数据。',profileSelect:'选择头像',saved:'已保存。'},
- 'zh-TW':{statsTitle:'網站統計',statsDesc:'查看訪問量、註冊帳戶和線上使用者。',totalVisits:'總訪問量',registeredUsers:'註冊使用者',onlineUsers:'目前線上',visitChartTitle:'訪問圖表',last7Days:'最近7天',loadingStats:'正在載入統計...',noStats:'尚無訪問資料。',profileSelect:'選擇頭像',saved:'已儲存。'},
- fr:{statsTitle:'Statistiques du site',statsDesc:'Visites, comptes inscrits et utilisateurs en ligne.',totalVisits:'Visites totales',registeredUsers:'Utilisateurs inscrits',onlineUsers:'En ligne',visitChartTitle:'Graphique des visites',last7Days:'7 derniers jours',loadingStats:'Chargement...',noStats:'Aucune visite.',profileSelect:'Choisir une photo',saved:'Enregistré.'},
- de:{statsTitle:'Website-Statistik',statsDesc:'Besuche, registrierte Konten und Online-Nutzer.',totalVisits:'Besuche insgesamt',registeredUsers:'Registrierte Nutzer',onlineUsers:'Jetzt online',visitChartTitle:'Besuchsdiagramm',last7Days:'Letzte 7 Tage',loadingStats:'Statistik wird geladen...',noStats:'Noch keine Besuchsdaten.',profileSelect:'Profilfoto wählen',saved:'Gespeichert.'},
- tr:{statsTitle:'Site İstatistikleri',statsDesc:'Ziyaretleri, kayıtlı hesapları ve çevrimiçi kullanıcıları görün.',totalVisits:'Toplam Ziyaret',registeredUsers:'Kayıtlı Kullanıcılar',onlineUsers:'Şimdi Çevrimiçi',visitChartTitle:'Ziyaret Grafiği',last7Days:'Son 7 gün',loadingStats:'İstatistikler yükleniyor...',noStats:'Henüz ziyaret yok.',profileSelect:'Profil fotoğrafı seç',saved:'Kaydedildi.'},
- ru:{statsTitle:'Статистика сайта',statsDesc:'Посещения, зарегистрированные аккаунты и пользователи онлайн.',totalVisits:'Всего посещений',registeredUsers:'Зарегистрированные',onlineUsers:'Сейчас онлайн',visitChartTitle:'График посещений',last7Days:'Последние 7 дней',loadingStats:'Загрузка статистики...',noStats:'Данных о посещениях пока нет.',profileSelect:'Выбрать фото профиля',saved:'Сохранено.'},
- hi:{statsTitle:'वेबसाइट आँकड़े',statsDesc:'विज़िट, पंजीकृत खाते और ऑनलाइन उपयोगकर्ता देखें।',totalVisits:'कुल विज़िट',registeredUsers:'पंजीकृत उपयोगकर्ता',onlineUsers:'अभी ऑनलाइन',visitChartTitle:'विज़िट ग्राफ',last7Days:'पिछले 7 दिन',loadingStats:'आँकड़े लोड हो रहे हैं...',noStats:'अभी कोई विज़िट डेटा नहीं।',profileSelect:'प्रोफ़ाइल फोटो चुनें',saved:'सहेजा गया।'},
- ar:{statsTitle:'إحصاءات الموقع',statsDesc:'عرض الزيارات والحسابات المسجلة والمستخدمين المتصلين.',totalVisits:'إجمالي الزيارات',registeredUsers:'المستخدمون المسجلون',onlineUsers:'متصل الآن',visitChartTitle:'رسم الزيارات',last7Days:'آخر 7 أيام',loadingStats:'جارٍ تحميل الإحصاءات...',noStats:'لا توجد بيانات زيارات بعد.',profileSelect:'اختر صورة الملف الشخصي',saved:'تم الحفظ.'},
- vi:{statsTitle:'Thống kê website',statsDesc:'Xem lượt truy cập, tài khoản đăng ký và người dùng online.',totalVisits:'Tổng lượt truy cập',registeredUsers:'Người dùng đã đăng ký',onlineUsers:'Đang online',visitChartTitle:'Biểu đồ truy cập',last7Days:'7 ngày qua',loadingStats:'Đang tải thống kê...',noStats:'Chưa có dữ liệu truy cập.',profileSelect:'Chọn ảnh hồ sơ',saved:'Đã lưu.'},
- th:{statsTitle:'สถิติเข้าเว็บไซต์',statsDesc:'ดูการเข้าชม บัญชีที่ลงทะเบียน และผู้ใช้ออนไลน์',totalVisits:'การเข้าชมทั้งหมด',registeredUsers:'ผู้ใช้ที่ลงทะเบียน',onlineUsers:'ออนไลน์ตอนนี้',visitChartTitle:'กราฟการเข้าชม',last7Days:'7 วันที่ผ่านมา',loadingStats:'กำลังโหลดสถิติ...',noStats:'ยังไม่มีข้อมูลการเข้าชม',profileSelect:'เลือกรูปโปรไฟล์',saved:'บันทึกแล้ว'},
- pl:{statsTitle:'Statystyki strony',statsDesc:'Wyświetl wizyty, zarejestrowane konta i użytkowników online.',totalVisits:'Łączne wizyty',registeredUsers:'Zarejestrowani użytkownicy',onlineUsers:'Teraz online',visitChartTitle:'Wykres wizyt',last7Days:'Ostatnie 7 dni',loadingStats:'Ładowanie statystyk...',noStats:'Brak danych o wizytach.',profileSelect:'Wybierz zdjęcie profilu',saved:'Zapisano.'},
- it:{statsTitle:'Statistiche del sito',statsDesc:'Visite, account registrati e utenti online.',totalVisits:'Visite totali',registeredUsers:'Utenti registrati',onlineUsers:'Online ora',visitChartTitle:'Grafico visite',last7Days:'Ultimi 7 giorni',loadingStats:'Caricamento statistiche...',noStats:'Nessun dato sulle visite.',profileSelect:'Scegli foto profilo',saved:'Salvato.'},
- 'pt-PT':{statsTitle:'Estatísticas do site',statsDesc:'Visitas, contas registadas e utilizadores online.',totalVisits:'Total de visitas',registeredUsers:'Utilizadores registados',onlineUsers:'Online agora',visitChartTitle:'Gráfico de visitas',last7Days:'Últimos 7 dias',loadingStats:'A carregar estatísticas...',noStats:'Ainda não existem visitas.',profileSelect:'Escolher foto de perfil',saved:'Guardado.'}
+ id:{statsTitle:'Statistik Website',statsDesc:'Lihat jumlah akun terdaftar dan pengguna online.',registeredUsers:'Total Terdaftar',onlineUsers:'Online Sekarang',profileSelect:'Pilih Foto Profil',saved:'Tersimpan.'},
+ en:{statsTitle:'Website Statistics',statsDesc:'View registered accounts and online users.',registeredUsers:'Registered Users',onlineUsers:'Online Now',profileSelect:'Choose Profile Photo',saved:'Saved.'},
+ es:{statsTitle:'Estadísticas del sitio',statsDesc:'Cuentas registradas y usuarios en línea.',registeredUsers:'Usuarios registrados',onlineUsers:'En línea ahora',profileSelect:'Elegir foto de perfil',saved:'Guardado.'},
+ pt:{statsTitle:'Estatísticas do site',statsDesc:'Veja contas registradas e usuários online.',registeredUsers:'Usuários registrados',onlineUsers:'Online agora',profileSelect:'Escolher foto de perfil',saved:'Salvo.'},
+ ja:{statsTitle:'サイト統計',statsDesc:'登録アカウントとオンラインユーザーを表示します。',registeredUsers:'登録ユーザー',onlineUsers:'オンライン',profileSelect:'プロフィール写真を選択',saved:'保存しました。'},
+ ko:{statsTitle:'사이트 통계',statsDesc:'가입 계정과 온라인 사용자를 확인하세요.',registeredUsers:'가입 사용자',onlineUsers:'현재 온라인',profileSelect:'프로필 사진 선택',saved:'저장되었습니다.'},
+ zh:{statsTitle:'网站统计',statsDesc:'查看注册账户和在线用户。',registeredUsers:'注册用户',onlineUsers:'当前在线',profileSelect:'选择头像',saved:'已保存。'},
+ 'zh-TW':{statsTitle:'網站統計',statsDesc:'查看註冊帳戶和線上使用者。',registeredUsers:'註冊使用者',onlineUsers:'目前線上',profileSelect:'選擇頭像',saved:'已儲存。'},
+ fr:{statsTitle:'Statistiques du site',statsDesc:'Comptes inscrits et utilisateurs en ligne.',registeredUsers:'Utilisateurs inscrits',onlineUsers:'En ligne',profileSelect:'Choisir une photo',saved:'Enregistré.'},
+ de:{statsTitle:'Website-Statistik',statsDesc:'Registrierte Konten und Online-Nutzer.',registeredUsers:'Registrierte Nutzer',onlineUsers:'Jetzt online',profileSelect:'Profilfoto wählen',saved:'Gespeichert.'},
+ tr:{statsTitle:'Site İstatistikleri',statsDesc:'Kayıtlı hesapları ve çevrimiçi kullanıcıları görün.',registeredUsers:'Kayıtlı Kullanıcılar',onlineUsers:'Şimdi Çevrimiçi',profileSelect:'Profil fotoğrafı seç',saved:'Kaydedildi.'},
+ ru:{statsTitle:'Статистика сайта',statsDesc:'Зарегистрированные аккаунты и пользователи онлайн.',registeredUsers:'Зарегистрированные',onlineUsers:'Сейчас онлайн',profileSelect:'Выбрать фото профиля',saved:'Сохранено.'},
+ hi:{statsTitle:'वेबसाइट आँकड़े',statsDesc:'पंजीकृत खाते और ऑनलाइन उपयोगकर्ता देखें।',registeredUsers:'पंजीकृत उपयोगकर्ता',onlineUsers:'अभी ऑनलाइन',profileSelect:'प्रोफ़ाइल फोटो चुनें',saved:'सहेजा गया।'},
+ ar:{statsTitle:'إحصاءات الموقع',statsDesc:'عرض الحسابات المسجلة والمستخدمين المتصلين.',registeredUsers:'المستخدمون المسجلون',onlineUsers:'متصل الآن',profileSelect:'اختر صورة الملف الشخصي',saved:'تم الحفظ.'},
+ vi:{statsTitle:'Thống kê website',statsDesc:'Xem tài khoản đăng ký và người dùng online.',registeredUsers:'Người dùng đã đăng ký',onlineUsers:'Đang online',profileSelect:'Chọn ảnh hồ sơ',saved:'Đã lưu.'},
+ th:{statsTitle:'สถิติเข้าเว็บไซต์',statsDesc:'ดูบัญชีที่ลงทะเบียนและผู้ใช้ออนไลน์',registeredUsers:'ผู้ใช้ที่ลงทะเบียน',onlineUsers:'ออนไลน์ตอนนี้',profileSelect:'เลือกรูปโปรไฟล์',saved:'บันทึกแล้ว'},
+ pl:{statsTitle:'Statystyki strony',statsDesc:'Wyświetl zarejestrowane konta i użytkowników online.',registeredUsers:'Zarejestrowani użytkownicy',onlineUsers:'Teraz online',profileSelect:'Wybierz zdjęcie profilu',saved:'Zapisano.'},
+ it:{statsTitle:'Statistiche del sito',statsDesc:'Account registrati e utenti online.',registeredUsers:'Utenti registrati',onlineUsers:'Online ora',profileSelect:'Scegli foto profilo',saved:'Salvato.'},
+ 'pt-PT':{statsTitle:'Estatísticas do site',statsDesc:'Contas registadas e utilizadores online.',registeredUsers:'Utilizadores registados',onlineUsers:'Online agora',profileSelect:'Escolher foto de perfil',saved:'Guardado.'}
 };
 for(const [lang,vals] of Object.entries(statsText)) Object.assign(ui[lang]||{},vals);
 Object.assign(ui.id,{navWorkspace:'Script',profile:'Profil',logout:'Logout'}); Object.assign(ui.en,{navWorkspace:'Scripts',profile:'Profile',logout:'Logout'});
@@ -264,7 +264,6 @@ function applyLanguage(){
   $('#viewAll').title=dict.back;
   renderTutorials();
   renderScriptsIfPossible();
-  loadStats();
 }
 
 function openAuth(m, silent=false){
@@ -385,19 +384,17 @@ async function heartbeat(){await syncAuth();if(!currentUser)return;try{await sb.
 async function refreshOnlineCount(){const el=$('#onlineCountStat');if(!el)return;try{const cutoff=new Date(Date.now()-60000).toISOString();const {count,error}=await sb.from('presence').select('user_id',{count:'exact',head:true}).gt('last_seen',cutoff);if(error)throw error;el.textContent=String(count||0);}catch(_){el.textContent='0';}}
 function startRealtime(){stopRealtime();if(!currentUser)return;heartbeat();presenceTimer=setInterval(heartbeat,20000);refreshOnlineCount();onlineTimer=setInterval(refreshOnlineCount,15000);}
 
-async function recordVisit(){try{await sb.from('site_visits').insert({path:location.pathname+location.hash,visitor_id:ensureVisitorId()});const v=localStorage.getItem('cb_visitor_id')||'';if(!v){} }catch(_){}}
 function ensureVisitorId(){let v=localStorage.getItem('cb_visitor_id');if(!v){v=(crypto.randomUUID?crypto.randomUUID():String(Date.now())+'-'+Math.random());localStorage.setItem('cb_visitor_id',v);}return v;}
 async function loadStats(){
-  const vc=$('#visitCount'), rc=$('#registeredCount'), oc=$('#onlineCountStat'), chart=$('#visitChart'); if(!vc||!rc||!oc)return;
+  const rc=$('#registeredCount'), oc=$('#onlineCountStat'); if(!rc||!oc)return;
   try{
-    const [v,r,p]=await Promise.all([sb.from('site_visits').select('id',{count:'exact',head:true}),sb.from('profiles').select('id',{count:'exact',head:true}),sb.from('presence').select('user_id',{count:'exact',head:true}).gt('last_seen',new Date(Date.now()-60000).toISOString())]);
-    if(!v.error)vc.textContent=String(v.count||0); if(!r.error)rc.textContent=String(r.count||0); if(!p.error)oc.textContent=String(p.count||0);
-    const since=new Date(); since.setHours(0,0,0,0); since.setDate(since.getDate()-6);
-    const {data,error}=await sb.from('site_visits').select('created_at').gte('created_at',since.toISOString()).order('created_at',{ascending:true});
-    if(error)throw error; const days=[]; for(let i=0;i<7;i++){const d=new Date(since);d.setDate(since.getDate()+i);days.push({date:d,label:d.toLocaleDateString(currentLang(),{day:'numeric',month:'short'}),count:0});}
-    (data||[]).forEach(x=>{const d=new Date(x.created_at);const k=new Date(d.getFullYear(),d.getMonth(),d.getDate()).getTime();const row=days.find(z=>new Date(z.date).setHours(0,0,0,0)===k);if(row)row.count++;});
-    const max=Math.max(1,...days.map(x=>x.count)); chart.innerHTML=days.map(x=>`<div class="bar-item"><div class="bar-value">${x.count}</div><div class="bar-track"><i style="height:${Math.max(6,Math.round(x.count/max*100))}%"></i></div><small>${escapeHtml(x.label)}</small></div>`).join('');
-  }catch(e){chart.innerHTML=`<div class="empty">${escapeHtml(tr('noStats'))}</div>`;}
+    const [r,p]=await Promise.all([
+      sb.from('profiles').select('id',{count:'exact',head:true}),
+      sb.from('presence').select('user_id',{count:'exact',head:true}).gt('last_seen',new Date(Date.now()-60000).toISOString())
+    ]);
+    if(!r.error)rc.textContent=String(r.count||0);
+    if(!p.error)oc.textContent=String(p.count||0);
+  }catch(_){rc.textContent='0';oc.textContent='0';}
 }
 
 $('#languageSelect').addEventListener('change',e=>{localStorage.setItem('cb_lang',e.target.value);applyLanguage();loadStats();});
@@ -460,8 +457,6 @@ window.addEventListener('hashchange',routePage);
 const initialLang=localStorage.getItem('cb_lang') || detectLanguage();
 if(!localStorage.getItem('cb_lang')) localStorage.setItem('cb_lang',initialLang);
 applyLanguage();
-ensureVisitorId();
-recordVisit();
 loadStats();
 routePage();
 (async()=>{
