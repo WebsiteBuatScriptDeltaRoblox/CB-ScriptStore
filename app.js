@@ -2,7 +2,21 @@ const $ = (s) => document.querySelector(s);
 let mode = 'login';
 let token = null;
 let currentUser = null;
+let pendingRoute = null;
 const sb = window.supabase.createClient(window.CB_SUPABASE_URL, window.CB_SUPABASE_ANON_KEY);
+
+function friendlyAuthError(error){
+  const m = String(error?.message || error || '');
+  if (/already registered|already exists/i.test(m)) return 'Username sudah dipakai. Silakan gunakan username lain.';
+  if (/invalid login credentials/i.test(m)) return 'Username atau password salah.';
+  return m || 'Terjadi kesalahan.';
+}
+async function syncAuth(){
+  const {data:{session}} = await sb.auth.getSession();
+  token = session?.access_token || null;
+  currentUser = session?.user || null;
+  return session;
+}
 
 const levels = [
   { icon:'🌱', code:`local playerName = "Fahrizal"\nprint("Halo, " .. playerName)`, key:'l1', focus:'variables' },
@@ -66,7 +80,7 @@ const tutorialText = {
 };
 
 const fallbackTutorial = tutorialText.en;
-const commonExtra = {navWorkspace:'My Scripts',workspaceTitle:'My Scripts',workspaceDesc:'Create, edit, save, and open Raw links for your scripts.',logout:'Logout',scriptFilename:'Script filename',private:'Private',public:'Public',saveScript:'Save Script',newScript:'New Script',savedScripts:'Saved Scripts',newScriptName:'New script',saved:'Script saved.',updated:'Script updated.',deleted:'Script deleted.',confirmDelete:'Delete this script?',needLoginWorkspace:'Log in to use your script workspace.',raw:'Raw →',edit:'Edit',delete:'Delete',navChat:'Global Chat',chatTitle:'Global Chat',chatDesc:'Talk with other CB ScriptStore users in real time.',onlineNow:'Online Now',chatLogin:'Register or login to join the global chat.',chatPlaceholder:'Write a message...',send:'Send',noMessages:'No messages yet. Start the conversation!',chatError:'Chat could not be loaded.'};
+const commonExtra = {navWorkspace:'Script',workspaceTitle:'Script',workspaceDesc:'View and manage your saved scripts.',createScript:'Create Script',createDesc:'Write your Luau script, then save it to your account.',profile:'Profile',profileGuest:'Log in to view your profile.',notLoggedIn:'Not logged in',loggedIn:'Logged in',logout:'Logout',scriptFilename:'Script filename',private:'Private',public:'Public',saveScript:'Save Script',newScript:'New Script',savedScripts:'Saved Scripts',newScriptName:'New script',saved:'Script saved.',updated:'Script updated.',deleted:'Script deleted.',confirmDelete:'Delete this script?',needLoginWorkspace:'Log in to use your script workspace.',raw:'Raw →',edit:'Edit',delete:'Delete',navChat:'Global Chat',chatTitle:'Global Chat',chatDesc:'Talk with other CB ScriptStore users in real time.',onlineNow:'Online Now',chatLogin:'Register or login to join the global chat.',chatPlaceholder:'Write a message...',send:'Send',noMessages:'No messages yet. Start the conversation!',chatError:'Chat could not be loaded.'};
 for (const lang of Object.keys(ui)) Object.assign(ui[lang], commonExtra);
 const chatByLang={
   id:['Chat Global','Ngobrol dengan pengguna CB ScriptStore lainnya secara langsung.','Sedang Online','Daftar atau login untuk ikut chat global.','Tulis pesan...','Kirim','Belum ada pesan. Mulai percakapan!','Chat gagal dimuat.'],
@@ -93,7 +107,8 @@ const chatByLang={
 const chatKeys=['chatTitle','chatDesc','onlineNow','chatLogin','chatPlaceholder','send','noMessages','chatError'];
 for(const [lang,vals] of Object.entries(chatByLang)) vals.forEach((v,i)=>ui[lang][chatKeys[i]]=v);
 
-ui.id.navWorkspace='Script Saya'; ui.id.workspaceTitle='Script Saya'; ui.id.workspaceDesc='Buat, edit, simpan, dan buka Raw URL untuk script kamu.'; ui.id.logout='Logout'; ui.id.scriptFilename='Nama file script'; ui.id.private='Private'; ui.id.public='Public'; ui.id.saveScript='Simpan Script'; ui.id.newScript='Script Baru'; ui.id.savedScripts='Script Tersimpan'; ui.id.newScriptName='script-baru.lua'; ui.id.saved='Script berhasil disimpan.'; ui.id.updated='Script berhasil diperbarui.'; ui.id.deleted='Script berhasil dihapus.'; ui.id.confirmDelete='Hapus script ini?'; ui.id.needLoginWorkspace='Login untuk menggunakan workspace script kamu.'; ui.id.raw='Raw →'; ui.id.edit='Edit'; ui.id.delete='Hapus';
+ui.id.navWorkspace='Script'; ui.id.workspaceTitle='Script'; ui.id.workspaceDesc='Lihat dan kelola script yang sudah kamu simpan.'; ui.id.createScript='Buat Script'; ui.id.createDesc='Tulis script Luau kamu, lalu simpan ke akunmu.'; ui.id.profile='Profil'; ui.id.profileGuest='Login untuk melihat profil.'; ui.id.notLoggedIn='Belum login'; ui.id.loggedIn='Sudah login';
+ui.id.navWorkspace='Script'; ui.id.workspaceTitle='Script'; ui.id.workspaceDesc='Lihat dan kelola script yang sudah kamu simpan.'; ui.id.logout='Logout'; ui.id.scriptFilename='Nama file script'; ui.id.private='Private'; ui.id.public='Public'; ui.id.saveScript='Simpan Script'; ui.id.newScript='Script Baru'; ui.id.savedScripts='Script Tersimpan'; ui.id.newScriptName='script-baru.lua'; ui.id.saved='Script berhasil disimpan.'; ui.id.updated='Script berhasil diperbarui.'; ui.id.deleted='Script berhasil dihapus.'; ui.id.confirmDelete='Hapus script ini?'; ui.id.needLoginWorkspace='Login untuk menggunakan workspace script kamu.'; ui.id.raw='Raw →'; ui.id.edit='Edit'; ui.id.delete='Hapus';
 
 const extraByLang={
  es:['Mis Scripts','Crea, edita, guarda y abre enlaces Raw para tus scripts.','Cerrar sesión','Nombre del script','Privado','Público','Guardar script','Nuevo script','Scripts guardados','script-nuevo.lua','Script guardado.','Script actualizado.','Script eliminado.','¿Eliminar este script?','Inicia sesión para usar tu espacio de scripts.','Raw →','Editar','Eliminar'],
@@ -121,46 +136,12 @@ ui.id.scriptCode='Tulis kode Luau di sini...'; ui.en.scriptCode='Write your Luau
 for(const lang of Object.keys(ui)) if(!ui[lang].scriptCode) ui[lang].scriptCode=ui.en.scriptCode;
 
 ui.en.navWorkspace='My Scripts'; ui.en.workspaceTitle='My Scripts'; ui.en.workspaceDesc='Create, edit, save, and open Raw links for your scripts.'; ui.en.scriptFilename='Script filename'; ui.en.newScriptName='new-script.lua'; ui.en.saved='Script saved.'; ui.en.updated='Script updated.'; ui.en.deleted='Script deleted.'; ui.en.confirmDelete='Delete this script?'; ui.en.needLoginWorkspace='Log in to use your script workspace.'; ui.en.raw='Raw →'; ui.en.edit='Edit'; ui.en.delete='Delete';
-
-
-// Feature translations used by My Scripts, profile settings, menus, and all UI states.
-const featureByLang = {
-  id:{navProfile:'Profil',profile:'Profil',profileTitle:'Profil Saya',profileSubtitle:'Atur gambar profil akun kamu.',chooseProfile:'Pilih profil',saveProfile:'Simpan Profil',profileSaved:'Profil berhasil disimpan.',profileError:'Profil gagal dimuat.',usernameLabel:'Username',avatarLabel:'Gambar profil',createScript:'Buat Script',uploadFile:'Upload File',scriptType:'Jenis',code:'Code',text:'Text',filename:'Nama script',content:'Isi script / text',visibility:'Visibilitas',private:'Private',public:'Public',saveScript:'Simpan Script',newScript:'Script Baru',savedScripts:'Script Tersimpan',maxScripts:'Maksimal 50 script per akun.',scriptsCount:'script',more:'Lainnya',visit:'Visit',raw:'Raw',copyRaw:'Salin Raw Link',copied:'Raw link disalin.',copyFailed:'Gagal menyalin link.',edit:'Edit',delete:'Hapus',confirmDelete:'Hapus script ini?',saved:'Script berhasil disimpan.',updated:'Script berhasil diperbarui.',deleted:'Script berhasil dihapus.',fileLoaded:'File berhasil dimuat.',invalidFile:'File harus berupa teks dan maksimal 500 KB.',loginRequired:'Login untuk menggunakan fitur ini.',needLoginWorkspace:'Login untuk menggunakan Script Saya.',noScripts:'Belum ada script. Buat script pertamamu!',loading:'Memuat...',notFound:'Script tidak ditemukan.',backToScripts:'Kembali ke Script Saya',openRaw:'Buka Raw',ownerOnly:'Script ini hanya bisa dibuka oleh pemilik saat bersifat private.',logout:'Logout',chatAvatar:'Profil',onlineNow:'Sedang Online',chatTitle:'Chat Global',chatDesc:'Ngobrol dengan pengguna CB ScriptStore lainnya.',chatLogin:'Daftar atau login untuk ikut chat global.',chatPlaceholder:'Tulis pesan...',send:'Kirim',noMessages:'Belum ada pesan. Mulai percakapan!',chatError:'Chat gagal dimuat.',menuClose:'Tutup menu'},
-  en:{navProfile:'Profile',profile:'Profile',profileTitle:'My Profile',profileSubtitle:'Choose the profile image for your account.',chooseProfile:'Choose profile',saveProfile:'Save Profile',profileSaved:'Profile saved.',profileError:'Could not load profile.',usernameLabel:'Username',avatarLabel:'Profile image',createScript:'Create Script',uploadFile:'Upload File',scriptType:'Type',code:'Code',text:'Text',filename:'Script name',content:'Script / text content',visibility:'Visibility',private:'Private',public:'Public',saveScript:'Save Script',newScript:'New Script',savedScripts:'Saved Scripts',maxScripts:'Maximum 50 scripts per account.',scriptsCount:'scripts',more:'More',visit:'Visit',raw:'Raw',copyRaw:'Copy Raw Link',copied:'Raw link copied.',copyFailed:'Could not copy link.',edit:'Edit',delete:'Delete',confirmDelete:'Delete this script?',saved:'Script saved.',updated:'Script updated.',deleted:'Script deleted.',fileLoaded:'File loaded.',invalidFile:'The file must be text and no larger than 500 KB.',loginRequired:'Log in to use this feature.',needLoginWorkspace:'Log in to use My Scripts.',noScripts:'No scripts yet. Create your first one!',loading:'Loading...',notFound:'Script not found.',backToScripts:'Back to My Scripts',openRaw:'Open Raw',ownerOnly:'This private script can only be viewed by its owner.',logout:'Logout',chatAvatar:'Profile',onlineNow:'Online Now',chatTitle:'Global Chat',chatDesc:'Talk with other CB ScriptStore users.',chatLogin:'Register or log in to join the global chat.',chatPlaceholder:'Write a message...',send:'Send',noMessages:'No messages yet. Start the conversation!',chatError:'Chat could not be loaded.',menuClose:'Close menu'},
-  es:{navProfile:'Perfil',profile:'Perfil',profileTitle:'Mi perfil',profileSubtitle:'Elige la imagen de perfil de tu cuenta.',chooseProfile:'Elegir perfil',saveProfile:'Guardar perfil',profileSaved:'Perfil guardado.',profileError:'No se pudo cargar el perfil.',usernameLabel:'Usuario',avatarLabel:'Imagen de perfil',createScript:'Crear script',uploadFile:'Subir archivo',scriptType:'Tipo',code:'Código',text:'Texto',filename:'Nombre del script',content:'Contenido del script / texto',visibility:'Visibilidad',private:'Privado',public:'Público',saveScript:'Guardar script',newScript:'Nuevo script',savedScripts:'Scripts guardados',maxScripts:'Máximo 50 scripts por cuenta.',scriptsCount:'scripts',more:'Más',visit:'Visitar',raw:'Raw',copyRaw:'Copiar enlace Raw',copied:'Enlace Raw copiado.',copyFailed:'No se pudo copiar el enlace.',edit:'Editar',delete:'Eliminar',confirmDelete:'¿Eliminar este script?',saved:'Script guardado.',updated:'Script actualizado.',deleted:'Script eliminado.',fileLoaded:'Archivo cargado.',invalidFile:'El archivo debe ser de texto y no superar 500 KB.',loginRequired:'Inicia sesión para usar esta función.',needLoginWorkspace:'Inicia sesión para usar Mis scripts.',noScripts:'Aún no hay scripts. ¡Crea el primero!',loading:'Cargando...',notFound:'Script no encontrado.',backToScripts:'Volver a Mis scripts',openRaw:'Abrir Raw',ownerOnly:'Este script privado solo puede verlo su propietario.',logout:'Cerrar sesión',chatAvatar:'Perfil',onlineNow:'En línea ahora',chatTitle:'Chat Global',chatDesc:'Habla con otros usuarios de CB ScriptStore.',chatLogin:'Regístrate o inicia sesión para unirte al chat.',chatPlaceholder:'Escribe un mensaje...',send:'Enviar',noMessages:'Aún no hay mensajes. ¡Inicia la conversación!',chatError:'No se pudo cargar el chat.',menuClose:'Cerrar menú'},
-  pt:{navProfile:'Perfil',profile:'Perfil',profileTitle:'Meu perfil',profileSubtitle:'Escolha a imagem de perfil da sua conta.',chooseProfile:'Escolher perfil',saveProfile:'Guardar perfil',profileSaved:'Perfil guardado.',profileError:'Não foi possível carregar o perfil.',usernameLabel:'Utilizador',avatarLabel:'Imagem de perfil',createScript:'Criar Script',uploadFile:'Enviar ficheiro',scriptType:'Tipo',code:'Código',text:'Texto',filename:'Nome do script',content:'Conteúdo do script / texto',visibility:'Visibilidade',private:'Privado',public:'Público',saveScript:'Guardar Script',newScript:'Novo Script',savedScripts:'Scripts guardados',maxScripts:'Máximo de 50 scripts por conta.',scriptsCount:'scripts',more:'Mais',visit:'Visitar',raw:'Raw',copyRaw:'Copiar link Raw',copied:'Link Raw copiado.',copyFailed:'Não foi possível copiar o link.',edit:'Editar',delete:'Eliminar',confirmDelete:'Eliminar este script?',saved:'Script guardado.',updated:'Script atualizado.',deleted:'Script eliminado.',fileLoaded:'Ficheiro carregado.',invalidFile:'O ficheiro deve ser texto e ter no máximo 500 KB.',loginRequired:'Entre para usar esta função.',needLoginWorkspace:'Entre para usar Meus Scripts.',noScripts:'Ainda não há scripts. Crie o primeiro!',loading:'A carregar...',notFound:'Script não encontrado.',backToScripts:'Voltar aos Meus Scripts',openRaw:'Abrir Raw',ownerOnly:'Este script privado só pode ser visto pelo proprietário.',logout:'Sair',chatAvatar:'Perfil',onlineNow:'Online agora',chatTitle:'Chat Global',chatDesc:'Converse com outros utilizadores do CB ScriptStore.',chatLogin:'Registe-se ou entre para participar no chat.',chatPlaceholder:'Escreva uma mensagem...',send:'Enviar',noMessages:'Ainda não há mensagens. Comece a conversa!',chatError:'Não foi possível carregar o chat.',menuClose:'Fechar menu'},
-  fil:{navProfile:'Profile',profile:'Profile',profileTitle:'Aking Profile',profileSubtitle:'Piliin ang profile image ng iyong account.',chooseProfile:'Pumili ng profile',saveProfile:'I-save ang Profile',profileSaved:'Naka-save ang profile.',profileError:'Hindi ma-load ang profile.',usernameLabel:'Username',avatarLabel:'Profile image',createScript:'Gumawa ng Script',uploadFile:'Mag-upload ng File',scriptType:'Uri',code:'Code',text:'Text',filename:'Pangalan ng script',content:'Nilalaman ng script / text',visibility:'Visibility',private:'Pribado',public:'Publiko',saveScript:'I-save ang Script',newScript:'Bagong Script',savedScripts:'Mga Naka-save na Script',maxScripts:'Hanggang 50 script bawat account.',scriptsCount:'scripts',more:'Higit pa',visit:'Bisitahin',raw:'Raw',copyRaw:'Kopyahin ang Raw Link',copied:'Nakopya ang Raw link.',copyFailed:'Hindi makopya ang link.',edit:'I-edit',delete:'I-delete',confirmDelete:'I-delete ang script na ito?',saved:'Naka-save ang script.',updated:'Na-update ang script.',deleted:'Na-delete ang script.',fileLoaded:'Na-load ang file.',invalidFile:'Text file lang at hanggang 500 KB.',loginRequired:'Mag-login para gamitin ang feature na ito.',needLoginWorkspace:'Mag-login para gamitin ang Aking Scripts.',noScripts:'Wala pang script. Gumawa ng una!',loading:'Naglo-load...',notFound:'Hindi nahanap ang script.',backToScripts:'Bumalik sa Aking Scripts',openRaw:'Buksan ang Raw',ownerOnly:'Ang private script na ito ay para lamang sa may-ari.',logout:'Logout',chatAvatar:'Profile',onlineNow:'Online Ngayon',chatTitle:'Global Chat',chatDesc:'Makipag-usap sa ibang CB ScriptStore users.',chatLogin:'Mag-register o mag-login para sumali sa chat.',chatPlaceholder:'Sumulat ng mensahe...',send:'Ipadala',noMessages:'Wala pang mensahe. Simulan ang usapan!',chatError:'Hindi ma-load ang chat.',menuClose:'Isara ang menu'},
-  tr:{navProfile:'Profil',profile:'Profil',profileTitle:'Profilim',profileSubtitle:'Hesabın için profil resmini seç.',chooseProfile:'Profil seç',saveProfile:'Profili Kaydet',profileSaved:'Profil kaydedildi.',profileError:'Profil yüklenemedi.',usernameLabel:'Kullanıcı adı',avatarLabel:'Profil resmi',createScript:'Script Oluştur',uploadFile:'Dosya Yükle',scriptType:'Tür',code:'Kod',text:'Metin',filename:'Script adı',content:'Script / metin içeriği',visibility:'Görünürlük',private:'Özel',public:'Herkese açık',saveScript:'Scripti Kaydet',newScript:'Yeni Script',savedScripts:'Kayıtlı Scriptler',maxScripts:'Hesap başına en fazla 50 script.',scriptsCount:'script',more:'Daha fazla',visit:'Ziyaret et',raw:'Raw',copyRaw:'Raw bağlantısını kopyala',copied:'Raw bağlantısı kopyalandı.',copyFailed:'Bağlantı kopyalanamadı.',edit:'Düzenle',delete:'Sil',confirmDelete:'Bu script silinsin mi?',saved:'Script kaydedildi.',updated:'Script güncellendi.',deleted:'Script silindi.',fileLoaded:'Dosya yüklendi.',invalidFile:'Dosya metin olmalı ve 500 KB altında olmalı.',loginRequired:'Bu özelliği kullanmak için giriş yap.',needLoginWorkspace:'Scriptlerimi kullanmak için giriş yap.',noScripts:'Henüz script yok. İlkini oluştur!',loading:'Yükleniyor...',notFound:'Script bulunamadı.',backToScripts:'Scriptlerime dön',openRaw:'Raw aç',ownerOnly:'Bu özel script yalnızca sahibi tarafından görüntülenebilir.',logout:'Çıkış',chatAvatar:'Profil',onlineNow:'Şimdi Çevrimiçi',chatTitle:'Global Sohbet',chatDesc:'Diğer CB ScriptStore kullanıcılarıyla konuş.',chatLogin:'Sohbete katılmak için kayıt ol veya giriş yap.',chatPlaceholder:'Mesaj yaz...',send:'Gönder',noMessages:'Henüz mesaj yok. Sohbeti başlat!',chatError:'Sohbet yüklenemedi.',menuClose:'Menüyü kapat'},
-  fr:{navProfile:'Profil',profile:'Profil',profileTitle:'Mon profil',profileSubtitle:'Choisissez l’image de profil de votre compte.',chooseProfile:'Choisir un profil',saveProfile:'Enregistrer le profil',profileSaved:'Profil enregistré.',profileError:'Impossible de charger le profil.',usernameLabel:'Nom d’utilisateur',avatarLabel:'Image de profil',createScript:'Créer un script',uploadFile:'Importer un fichier',scriptType:'Type',code:'Code',text:'Texte',filename:'Nom du script',content:'Contenu du script / texte',visibility:'Visibilité',private:'Privé',public:'Public',saveScript:'Enregistrer le script',newScript:'Nouveau script',savedScripts:'Scripts enregistrés',maxScripts:'Maximum de 50 scripts par compte.',scriptsCount:'scripts',more:'Plus',visit:'Visiter',raw:'Raw',copyRaw:'Copier le lien Raw',copied:'Lien Raw copié.',copyFailed:'Impossible de copier le lien.',edit:'Modifier',delete:'Supprimer',confirmDelete:'Supprimer ce script ?',saved:'Script enregistré.',updated:'Script mis à jour.',deleted:'Script supprimé.',fileLoaded:'Fichier chargé.',invalidFile:'Le fichier doit être du texte et faire au plus 500 Ko.',loginRequired:'Connectez-vous pour utiliser cette fonction.',needLoginWorkspace:'Connectez-vous pour utiliser Mes Scripts.',noScripts:'Aucun script. Créez le premier !',loading:'Chargement...',notFound:'Script introuvable.',backToScripts:'Retour à Mes Scripts',openRaw:'Ouvrir Raw',ownerOnly:'Ce script privé ne peut être consulté que par son propriétaire.',logout:'Déconnexion',chatAvatar:'Profil',onlineNow:'En ligne',chatTitle:'Chat Global',chatDesc:'Discutez avec les utilisateurs de CB ScriptStore.',chatLogin:'Inscrivez-vous ou connectez-vous pour rejoindre le chat.',chatPlaceholder:'Écrivez un message...',send:'Envoyer',noMessages:'Aucun message. Lancez la conversation !',chatError:'Impossible de charger le chat.',menuClose:'Fermer le menu'},
-  de:{navProfile:'Profil',profile:'Profil',profileTitle:'Mein Profil',profileSubtitle:'Wähle das Profilbild für dein Konto.',chooseProfile:'Profil auswählen',saveProfile:'Profil speichern',profileSaved:'Profil gespeichert.',profileError:'Profil konnte nicht geladen werden.',usernameLabel:'Benutzername',avatarLabel:'Profilbild',createScript:'Script erstellen',uploadFile:'Datei hochladen',scriptType:'Typ',code:'Code',text:'Text',filename:'Scriptname',content:'Script-/Textinhalt',visibility:'Sichtbarkeit',private:'Privat',public:'Öffentlich',saveScript:'Script speichern',newScript:'Neues Script',savedScripts:'Gespeicherte Scripts',maxScripts:'Maximal 50 Scripts pro Konto.',scriptsCount:'Scripts',more:'Mehr',visit:'Öffnen',raw:'Raw',copyRaw:'Raw-Link kopieren',copied:'Raw-Link kopiert.',copyFailed:'Link konnte nicht kopiert werden.',edit:'Bearbeiten',delete:'Löschen',confirmDelete:'Dieses Script löschen?',saved:'Script gespeichert.',updated:'Script aktualisiert.',deleted:'Script gelöscht.',fileLoaded:'Datei geladen.',invalidFile:'Die Datei muss Text sein und darf höchstens 500 KB groß sein.',loginRequired:'Melde dich an, um diese Funktion zu nutzen.',needLoginWorkspace:'Melde dich an, um Meine Scripts zu nutzen.',noScripts:'Noch keine Scripts. Erstelle dein erstes!',loading:'Wird geladen...',notFound:'Script nicht gefunden.',backToScripts:'Zurück zu Meine Scripts',openRaw:'Raw öffnen',ownerOnly:'Dieses private Script kann nur vom Besitzer angesehen werden.',logout:'Abmelden',chatAvatar:'Profil',onlineNow:'Jetzt online',chatTitle:'Globaler Chat',chatDesc:'Sprich mit anderen CB ScriptStore-Nutzern.',chatLogin:'Registriere dich oder melde dich an, um am Chat teilzunehmen.',chatPlaceholder:'Nachricht schreiben...',send:'Senden',noMessages:'Noch keine Nachrichten. Starte das Gespräch!',chatError:'Chat konnte nicht geladen werden.',menuClose:'Menü schließen'},
-  ja:{navProfile:'プロフィール',profile:'プロフィール',profileTitle:'マイプロフィール',profileSubtitle:'アカウントのプロフィール画像を選択します。',chooseProfile:'プロフィールを選択',saveProfile:'プロフィールを保存',profileSaved:'プロフィールを保存しました。',profileError:'プロフィールを読み込めませんでした。',usernameLabel:'ユーザー名',avatarLabel:'プロフィール画像',createScript:'スクリプト作成',uploadFile:'ファイルをアップロード',scriptType:'種類',code:'コード',text:'テキスト',filename:'スクリプト名',content:'スクリプト / テキスト内容',visibility:'公開設定',private:'非公開',public:'公開',saveScript:'保存',newScript:'新しいスクリプト',savedScripts:'保存したスクリプト',maxScripts:'1アカウントにつき最大50件です。',scriptsCount:'件',more:'その他',visit:'表示',raw:'Raw',copyRaw:'Rawリンクをコピー',copied:'Rawリンクをコピーしました。',copyFailed:'リンクをコピーできませんでした。',edit:'編集',delete:'削除',confirmDelete:'このスクリプトを削除しますか？',saved:'保存しました。',updated:'更新しました。',deleted:'削除しました。',fileLoaded:'ファイルを読み込みました。',invalidFile:'テキストファイルかつ500KB以下にしてください。',loginRequired:'この機能にはログインが必要です。',needLoginWorkspace:'マイスクリプトを使うにはログインしてください。',noScripts:'まだスクリプトがありません。最初の1件を作りましょう！',loading:'読み込み中...',notFound:'スクリプトが見つかりません。',backToScripts:'マイスクリプトに戻る',openRaw:'Rawを開く',ownerOnly:'この非公開スクリプトは所有者のみ表示できます。',logout:'ログアウト',chatAvatar:'プロフィール',onlineNow:'オンライン中',chatTitle:'グローバルチャット',chatDesc:'他のCB ScriptStoreユーザーと話せます。',chatLogin:'チャットには登録またはログインが必要です。',chatPlaceholder:'メッセージを書く...',send:'送信',noMessages:'まだメッセージはありません。会話を始めましょう！',chatError:'チャットを読み込めませんでした。',menuClose:'メニューを閉じる'},
-  ko:{navProfile:'프로필',profile:'프로필',profileTitle:'내 프로필',profileSubtitle:'계정의 프로필 이미지를 선택하세요.',chooseProfile:'프로필 선택',saveProfile:'프로필 저장',profileSaved:'프로필이 저장되었습니다.',profileError:'프로필을 불러올 수 없습니다.',usernameLabel:'사용자 이름',avatarLabel:'프로필 이미지',createScript:'스크립트 만들기',uploadFile:'파일 업로드',scriptType:'유형',code:'코드',text:'텍스트',filename:'스크립트 이름',content:'스크립트 / 텍스트 내용',visibility:'공개 설정',private:'비공개',public:'공개',saveScript:'스크립트 저장',newScript:'새 스크립트',savedScripts:'저장된 스크립트',maxScripts:'계정당 최대 50개입니다.',scriptsCount:'개',more:'더보기',visit:'보기',raw:'Raw',copyRaw:'Raw 링크 복사',copied:'Raw 링크가 복사되었습니다.',copyFailed:'링크를 복사할 수 없습니다.',edit:'편집',delete:'삭제',confirmDelete:'이 스크립트를 삭제할까요?',saved:'스크립트가 저장되었습니다.',updated:'스크립트가 업데이트되었습니다.',deleted:'스크립트가 삭제되었습니다.',fileLoaded:'파일을 불러왔습니다.',invalidFile:'텍스트 파일이며 500KB 이하여야 합니다.',loginRequired:'이 기능을 사용하려면 로그인하세요.',needLoginWorkspace:'내 스크립트를 사용하려면 로그인하세요.',noScripts:'아직 스크립트가 없습니다. 첫 번째를 만들어 보세요!',loading:'로드 중...',notFound:'스크립트를 찾을 수 없습니다.',backToScripts:'내 스크립트로 돌아가기',openRaw:'Raw 열기',ownerOnly:'이 비공개 스크립트는 소유자만 볼 수 있습니다.',logout:'로그아웃',chatAvatar:'프로필',onlineNow:'현재 온라인',chatTitle:'글로벌 채팅',chatDesc:'다른 CB ScriptStore 사용자와 대화하세요.',chatLogin:'채팅에 참여하려면 가입하거나 로그인하세요.',chatPlaceholder:'메시지를 입력하세요...',send:'보내기',noMessages:'아직 메시지가 없습니다. 대화를 시작하세요!',chatError:'채팅을 불러오지 못했습니다.',menuClose:'메뉴 닫기'},
-  zh:{navProfile:'个人资料',profile:'个人资料',profileTitle:'我的资料',profileSubtitle:'选择你的账号头像。',chooseProfile:'选择头像',saveProfile:'保存资料',profileSaved:'资料已保存。',profileError:'无法加载资料。',usernameLabel:'用户名',avatarLabel:'头像',createScript:'创建脚本',uploadFile:'上传文件',scriptType:'类型',code:'代码',text:'文本',filename:'脚本名称',content:'脚本 / 文本内容',visibility:'可见性',private:'私有',public:'公开',saveScript:'保存脚本',newScript:'新建脚本',savedScripts:'已保存脚本',maxScripts:'每个账号最多50个脚本。',scriptsCount:'个',more:'更多',visit:'查看',raw:'Raw',copyRaw:'复制 Raw 链接',copied:'Raw 链接已复制。',copyFailed:'无法复制链接。',edit:'编辑',delete:'删除',confirmDelete:'删除此脚本？',saved:'脚本已保存。',updated:'脚本已更新。',deleted:'脚本已删除。',fileLoaded:'文件已加载。',invalidFile:'文件必须是文本且不超过500 KB。',loginRequired:'请登录后使用此功能。',needLoginWorkspace:'请登录后使用我的脚本。',noScripts:'还没有脚本。创建你的第一个吧！',loading:'加载中...',notFound:'找不到脚本。',backToScripts:'返回我的脚本',openRaw:'打开 Raw',ownerOnly:'私有脚本只能由所有者查看。',logout:'退出登录',chatAvatar:'头像',onlineNow:'当前在线',chatTitle:'全球聊天',chatDesc:'与其他 CB ScriptStore 用户聊天。',chatLogin:'注册或登录后即可加入全球聊天。',chatPlaceholder:'输入消息...',send:'发送',noMessages:'还没有消息。开始聊天吧！',chatError:'无法加载聊天。',menuClose:'关闭菜单'},
-  'zh-TW':{navProfile:'個人資料',profile:'個人資料',profileTitle:'我的資料',profileSubtitle:'選擇你的帳號頭像。',chooseProfile:'選擇頭像',saveProfile:'儲存資料',profileSaved:'資料已儲存。',profileError:'無法載入資料。',usernameLabel:'使用者名稱',avatarLabel:'頭像',createScript:'建立腳本',uploadFile:'上傳檔案',scriptType:'類型',code:'程式碼',text:'文字',filename:'腳本名稱',content:'腳本 / 文字內容',visibility:'可見性',private:'私人',public:'公開',saveScript:'儲存腳本',newScript:'新建腳本',savedScripts:'已儲存腳本',maxScripts:'每個帳號最多50個腳本。',scriptsCount:'個',more:'更多',visit:'查看',raw:'Raw',copyRaw:'複製 Raw 連結',copied:'Raw 連結已複製。',copyFailed:'無法複製連結。',edit:'編輯',delete:'刪除',confirmDelete:'刪除這個腳本嗎？',saved:'腳本已儲存。',updated:'腳本已更新。',deleted:'腳本已刪除。',fileLoaded:'檔案已載入。',invalidFile:'檔案必須是文字且不超過500 KB。',loginRequired:'請登入後使用此功能。',needLoginWorkspace:'請登入後使用我的腳本。',noScripts:'還沒有腳本。建立第一個吧！',loading:'載入中...',notFound:'找不到腳本。',backToScripts:'返回我的腳本',openRaw:'開啟 Raw',ownerOnly:'私人腳本只有擁有者可以查看。',logout:'登出',chatAvatar:'頭像',onlineNow:'目前在線',chatTitle:'全球聊天',chatDesc:'與其他 CB ScriptStore 使用者聊天。',chatLogin:'註冊或登入即可加入全球聊天。',chatPlaceholder:'輸入訊息...',send:'發送',noMessages:'還沒有訊息。開始聊天吧！',chatError:'無法載入聊天。',menuClose:'關閉選單'},
-  ru:{navProfile:'Профиль',profile:'Профиль',profileTitle:'Мой профиль',profileSubtitle:'Выберите изображение профиля.',chooseProfile:'Выбрать профиль',saveProfile:'Сохранить профиль',profileSaved:'Профиль сохранён.',profileError:'Не удалось загрузить профиль.',usernameLabel:'Имя пользователя',avatarLabel:'Изображение профиля',createScript:'Создать скрипт',uploadFile:'Загрузить файл',scriptType:'Тип',code:'Код',text:'Текст',filename:'Имя скрипта',content:'Содержимое скрипта / текста',visibility:'Видимость',private:'Приватный',public:'Публичный',saveScript:'Сохранить скрипт',newScript:'Новый скрипт',savedScripts:'Сохранённые скрипты',maxScripts:'Максимум 50 скриптов на аккаунт.',scriptsCount:'скриптов',more:'Ещё',visit:'Открыть',raw:'Raw',copyRaw:'Копировать Raw-ссылку',copied:'Raw-ссылка скопирована.',copyFailed:'Не удалось скопировать ссылку.',edit:'Изменить',delete:'Удалить',confirmDelete:'Удалить этот скрипт?',saved:'Скрипт сохранён.',updated:'Скрипт обновлён.',deleted:'Скрипт удалён.',fileLoaded:'Файл загружен.',invalidFile:'Файл должен быть текстовым и не более 500 КБ.',loginRequired:'Войдите, чтобы использовать эту функцию.',needLoginWorkspace:'Войдите, чтобы использовать Мои скрипты.',noScripts:'Скриптов пока нет. Создайте первый!',loading:'Загрузка...',notFound:'Скрипт не найден.',backToScripts:'Назад к моим скриптам',openRaw:'Открыть Raw',ownerOnly:'Этот приватный скрипт доступен только владельцу.',logout:'Выйти',chatAvatar:'Профиль',onlineNow:'Сейчас онлайн',chatTitle:'Глобальный чат',chatDesc:'Общайтесь с другими пользователями CB ScriptStore.',chatLogin:'Зарегистрируйтесь или войдите, чтобы участвовать в чате.',chatPlaceholder:'Введите сообщение...',send:'Отправить',noMessages:'Сообщений пока нет. Начните разговор!',chatError:'Не удалось загрузить чат.',menuClose:'Закрыть меню'},
-  hi:{navProfile:'प्रोफ़ाइल',profile:'प्रोफ़ाइल',profileTitle:'मेरी प्रोफ़ाइल',profileSubtitle:'अपने खाते के लिए प्रोफ़ाइल चित्र चुनें।',chooseProfile:'प्रोफ़ाइल चुनें',saveProfile:'प्रोफ़ाइल सहेजें',profileSaved:'प्रोफ़ाइल सहेजी गई।',profileError:'प्रोफ़ाइल लोड नहीं हो सकी।',usernameLabel:'उपयोगकर्ता नाम',avatarLabel:'प्रोफ़ाइल चित्र',createScript:'Script बनाएँ',uploadFile:'फ़ाइल अपलोड करें',scriptType:'प्रकार',code:'कोड',text:'टेक्स्ट',filename:'Script नाम',content:'Script / टेक्स्ट सामग्री',visibility:'दृश्यता',private:'निजी',public:'सार्वजनिक',saveScript:'Script सेव करें',newScript:'नया Script',savedScripts:'सेव किए गए Scripts',maxScripts:'प्रति खाते अधिकतम 50 scripts.',scriptsCount:'scripts',more:'और',visit:'देखें',raw:'Raw',copyRaw:'Raw लिंक कॉपी करें',copied:'Raw लिंक कॉपी हो गया।',copyFailed:'लिंक कॉपी नहीं हो सका।',edit:'संपादित करें',delete:'डिलीट',confirmDelete:'यह script डिलीट करें?',saved:'Script सेव हो गया।',updated:'Script अपडेट हो गया।',deleted:'Script डिलीट हो गया।',fileLoaded:'फ़ाइल लोड हो गई।',invalidFile:'फ़ाइल text हो और 500 KB से कम होनी चाहिए।',loginRequired:'इस सुविधा के लिए लॉगिन करें।',needLoginWorkspace:'मेरे Scripts के लिए लॉगिन करें।',noScripts:'अभी कोई script नहीं है। पहला बनाएँ!',loading:'लोड हो रहा है...',notFound:'Script नहीं मिला।',backToScripts:'मेरे Scripts पर लौटें',openRaw:'Raw खोलें',ownerOnly:'यह private script केवल उसके मालिक को दिखता है।',logout:'लॉगआउट',chatAvatar:'प्रोफ़ाइल',onlineNow:'अभी ऑनलाइन',chatTitle:'ग्लोबल चैट',chatDesc:'अन्य CB ScriptStore उपयोगकर्ताओं से बात करें।',chatLogin:'ग्लोबल चैट में शामिल होने के लिए रजिस्टर या लॉगिन करें।',chatPlaceholder:'संदेश लिखें...',send:'भेजें',noMessages:'अभी कोई संदेश नहीं है। बातचीत शुरू करें!',chatError:'चैट लोड नहीं हो सकी।',menuClose:'मेनू बंद करें'},
-  ar:{navProfile:'الملف الشخصي',profile:'الملف الشخصي',profileTitle:'ملفي الشخصي',profileSubtitle:'اختر صورة ملفك الشخصي.',chooseProfile:'اختر الملف الشخصي',saveProfile:'حفظ الملف الشخصي',profileSaved:'تم حفظ الملف الشخصي.',profileError:'تعذر تحميل الملف الشخصي.',usernameLabel:'اسم المستخدم',avatarLabel:'صورة الملف الشخصي',createScript:'إنشاء سكربت',uploadFile:'رفع ملف',scriptType:'النوع',code:'كود',text:'نص',filename:'اسم السكربت',content:'محتوى السكربت / النص',visibility:'الظهور',private:'خاص',public:'عام',saveScript:'حفظ السكربت',newScript:'سكربت جديد',savedScripts:'السكربتات المحفوظة',maxScripts:'الحد الأقصى 50 سكربتًا لكل حساب.',scriptsCount:'سكربت',more:'المزيد',visit:'زيارة',raw:'Raw',copyRaw:'نسخ رابط Raw',copied:'تم نسخ رابط Raw.',copyFailed:'تعذر نسخ الرابط.',edit:'تعديل',delete:'حذف',confirmDelete:'هل تريد حذف هذا السكربت؟',saved:'تم حفظ السكربت.',updated:'تم تحديث السكربت.',deleted:'تم حذف السكربت.',fileLoaded:'تم تحميل الملف.',invalidFile:'يجب أن يكون الملف نصيًا وألا يتجاوز 500 كيلوبايت.',loginRequired:'سجّل الدخول لاستخدام هذه الميزة.',needLoginWorkspace:'سجّل الدخول لاستخدام سكربتاتي.',noScripts:'لا توجد سكربتات بعد. أنشئ أول واحد!',loading:'جارٍ التحميل...',notFound:'لم يتم العثور على السكربت.',backToScripts:'العودة إلى سكربتاتي',openRaw:'فتح Raw',ownerOnly:'لا يمكن مشاهدة هذا السكربت الخاص إلا من مالكه.',logout:'تسجيل الخروج',chatAvatar:'الملف الشخصي',onlineNow:'متصلون الآن',chatTitle:'الدردشة العامة',chatDesc:'تحدث مع مستخدمي CB ScriptStore الآخرين.',chatLogin:'سجّل أو ادخل للمشاركة في الدردشة العامة.',chatPlaceholder:'اكتب رسالة...',send:'إرسال',noMessages:'لا توجد رسائل بعد. ابدأ المحادثة!',chatError:'تعذر تحميل الدردشة.',menuClose:'إغلاق القائمة'},
-  vi:{navProfile:'Hồ sơ',profile:'Hồ sơ',profileTitle:'Hồ sơ của tôi',profileSubtitle:'Chọn ảnh hồ sơ cho tài khoản.',chooseProfile:'Chọn hồ sơ',saveProfile:'Lưu hồ sơ',profileSaved:'Đã lưu hồ sơ.',profileError:'Không thể tải hồ sơ.',usernameLabel:'Tên người dùng',avatarLabel:'Ảnh hồ sơ',createScript:'Tạo script',uploadFile:'Tải tệp lên',scriptType:'Loại',code:'Mã',text:'Văn bản',filename:'Tên script',content:'Nội dung script / văn bản',visibility:'Hiển thị',private:'Riêng tư',public:'Công khai',saveScript:'Lưu script',newScript:'Script mới',savedScripts:'Script đã lưu',maxScripts:'Tối đa 50 script mỗi tài khoản.',scriptsCount:'script',more:'Thêm',visit:'Xem',raw:'Raw',copyRaw:'Sao chép liên kết Raw',copied:'Đã sao chép liên kết Raw.',copyFailed:'Không thể sao chép liên kết.',edit:'Sửa',delete:'Xóa',confirmDelete:'Xóa script này?',saved:'Đã lưu script.',updated:'Đã cập nhật script.',deleted:'Đã xóa script.',fileLoaded:'Đã tải tệp.',invalidFile:'Tệp phải là văn bản và tối đa 500 KB.',loginRequired:'Đăng nhập để dùng tính năng này.',needLoginWorkspace:'Đăng nhập để dùng Script của tôi.',noScripts:'Chưa có script. Hãy tạo script đầu tiên!',loading:'Đang tải...',notFound:'Không tìm thấy script.',backToScripts:'Quay lại Script của tôi',openRaw:'Mở Raw',ownerOnly:'Script riêng tư này chỉ chủ sở hữu mới xem được.',logout:'Đăng xuất',chatAvatar:'Hồ sơ',onlineNow:'Đang online',chatTitle:'Chat toàn cầu',chatDesc:'Trò chuyện với người dùng CB ScriptStore khác.',chatLogin:'Đăng ký hoặc đăng nhập để tham gia chat.',chatPlaceholder:'Viết tin nhắn...',send:'Gửi',noMessages:'Chưa có tin nhắn. Hãy bắt đầu!',chatError:'Không thể tải chat.',menuClose:'Đóng menu'},
-  th:{navProfile:'โปรไฟล์',profile:'โปรไฟล์',profileTitle:'โปรไฟล์ของฉัน',profileSubtitle:'เลือกรูปโปรไฟล์สำหรับบัญชีของคุณ',chooseProfile:'เลือกโปรไฟล์',saveProfile:'บันทึกโปรไฟล์',profileSaved:'บันทึกโปรไฟล์แล้ว',profileError:'โหลดโปรไฟล์ไม่สำเร็จ',usernameLabel:'ชื่อผู้ใช้',avatarLabel:'รูปโปรไฟล์',createScript:'สร้างสคริปต์',uploadFile:'อัปโหลดไฟล์',scriptType:'ประเภท',code:'โค้ด',text:'ข้อความ',filename:'ชื่อสคริปต์',content:'เนื้อหาสคริปต์ / ข้อความ',visibility:'การมองเห็น',private:'ส่วนตัว',public:'สาธารณะ',saveScript:'บันทึกสคริปต์',newScript:'สคริปต์ใหม่',savedScripts:'สคริปต์ที่บันทึก',maxScripts:'สูงสุด 50 สคริปต์ต่อบัญชี',scriptsCount:'สคริปต์',more:'เพิ่มเติม',visit:'ดู',raw:'Raw',copyRaw:'คัดลอกลิงก์ Raw',copied:'คัดลอกลิงก์ Raw แล้ว',copyFailed:'คัดลอกลิงก์ไม่สำเร็จ',edit:'แก้ไข',delete:'ลบ',confirmDelete:'ต้องการลบสคริปต์นี้หรือไม่',saved:'บันทึกสคริปต์แล้ว',updated:'อัปเดตสคริปต์แล้ว',deleted:'ลบสคริปต์แล้ว',fileLoaded:'โหลดไฟล์แล้ว',invalidFile:'ไฟล์ต้องเป็นข้อความและมีขนาดไม่เกิน 500 KB',loginRequired:'เข้าสู่ระบบเพื่อใช้ฟีเจอร์นี้',needLoginWorkspace:'เข้าสู่ระบบเพื่อใช้สคริปต์ของฉัน',noScripts:'ยังไม่มีสคริปต์ สร้างอันแรกได้เลย!',loading:'กำลังโหลด...',notFound:'ไม่พบสคริปต์',backToScripts:'กลับไปสคริปต์ของฉัน',openRaw:'เปิด Raw',ownerOnly:'สคริปต์ส่วนตัวนี้ดูได้เฉพาะเจ้าของ',logout:'ออกจากระบบ',chatAvatar:'โปรไฟล์',onlineNow:'ออนไลน์ตอนนี้',chatTitle:'แชตทั่วโลก',chatDesc:'พูดคุยกับผู้ใช้ CB ScriptStore คนอื่น',chatLogin:'สมัครสมาชิกหรือเข้าสู่ระบบเพื่อเข้าร่วมแชต',chatPlaceholder:'พิมพ์ข้อความ...',send:'ส่ง',noMessages:'ยังไม่มีข้อความ เริ่มการสนทนาได้เลย!',chatError:'โหลดแชตไม่สำเร็จ',menuClose:'ปิดเมนู'},
-  pl:{navProfile:'Profil',profile:'Profil',profileTitle:'Mój profil',profileSubtitle:'Wybierz zdjęcie profilowe konta.',chooseProfile:'Wybierz profil',saveProfile:'Zapisz profil',profileSaved:'Profil zapisany.',profileError:'Nie udało się wczytać profilu.',usernameLabel:'Nazwa użytkownika',avatarLabel:'Zdjęcie profilowe',createScript:'Utwórz skrypt',uploadFile:'Prześlij plik',scriptType:'Typ',code:'Kod',text:'Tekst',filename:'Nazwa skryptu',content:'Zawartość skryptu / tekstu',visibility:'Widoczność',private:'Prywatny',public:'Publiczny',saveScript:'Zapisz skrypt',newScript:'Nowy skrypt',savedScripts:'Zapisane skrypty',maxScripts:'Maksymalnie 50 skryptów na konto.',scriptsCount:'skryptów',more:'Więcej',visit:'Otwórz',raw:'Raw',copyRaw:'Kopiuj link Raw',copied:'Link Raw skopiowany.',copyFailed:'Nie udało się skopiować linku.',edit:'Edytuj',delete:'Usuń',confirmDelete:'Usunąć ten skrypt?',saved:'Skrypt zapisany.',updated:'Skrypt zaktualizowany.',deleted:'Skrypt usunięty.',fileLoaded:'Plik załadowany.',invalidFile:'Plik musi być tekstowy i mieć maks. 500 KB.',loginRequired:'Zaloguj się, aby użyć tej funkcji.',needLoginWorkspace:'Zaloguj się, aby używać Moich skryptów.',noScripts:'Brak skryptów. Utwórz pierwszy!',loading:'Ładowanie...',notFound:'Nie znaleziono skryptu.',backToScripts:'Wróć do Moich skryptów',openRaw:'Otwórz Raw',ownerOnly:'Ten prywatny skrypt może wyświetlić tylko właściciel.',logout:'Wyloguj',chatAvatar:'Profil',onlineNow:'Online teraz',chatTitle:'Czat globalny',chatDesc:'Rozmawiaj z innymi użytkownikami CB ScriptStore.',chatLogin:'Zarejestruj się lub zaloguj, aby dołączyć do czatu.',chatPlaceholder:'Napisz wiadomość...',send:'Wyślij',noMessages:'Brak wiadomości. Rozpocznij rozmowę!',chatError:'Nie udało się załadować czatu.',menuClose:'Zamknij menu'},
-  it:{navProfile:'Profilo',profile:'Profilo',profileTitle:'Il mio profilo',profileSubtitle:'Scegli l’immagine del profilo per il tuo account.',chooseProfile:'Scegli profilo',saveProfile:'Salva profilo',profileSaved:'Profilo salvato.',profileError:'Impossibile caricare il profilo.',usernameLabel:'Nome utente',avatarLabel:'Immagine profilo',createScript:'Crea script',uploadFile:'Carica file',scriptType:'Tipo',code:'Codice',text:'Testo',filename:'Nome script',content:'Contenuto script / testo',visibility:'Visibilità',private:'Privato',public:'Pubblico',saveScript:'Salva script',newScript:'Nuovo script',savedScripts:'Script salvati',maxScripts:'Massimo 50 script per account.',scriptsCount:'script',more:'Altro',visit:'Apri',raw:'Raw',copyRaw:'Copia link Raw',copied:'Link Raw copiato.',copyFailed:'Impossibile copiare il link.',edit:'Modifica',delete:'Elimina',confirmDelete:'Eliminare questo script?',saved:'Script salvato.',updated:'Script aggiornato.',deleted:'Script eliminato.',fileLoaded:'File caricato.',invalidFile:'Il file deve essere di testo e massimo 500 KB.',loginRequired:'Accedi per usare questa funzione.',needLoginWorkspace:'Accedi per usare I miei script.',noScripts:'Nessuno script. Crea il primo!',loading:'Caricamento...',notFound:'Script non trovato.',backToScripts:'Torna a I miei script',openRaw:'Apri Raw',ownerOnly:'Questo script privato può essere visualizzato solo dal proprietario.',logout:'Esci',chatAvatar:'Profilo',onlineNow:'Online ora',chatTitle:'Chat globale',chatDesc:'Parla con altri utenti di CB ScriptStore.',chatLogin:'Registrati o accedi per partecipare alla chat.',chatPlaceholder:'Scrivi un messaggio...',send:'Invia',noMessages:'Nessun messaggio. Inizia la conversazione!',chatError:'Impossibile caricare la chat.',menuClose:'Chiudi menu'},
-  'pt-PT':{}
-};
-// Reuse Portuguese translations for pt-PT, then override only the spelling that matters.
-featureByLang['pt-PT'] = {...featureByLang.pt, openRaw:'Abrir Raw',backToScripts:'Voltar aos Meus Scripts'};
-for (const lang of Object.keys(ui)) Object.assign(ui[lang], featureByLang[lang] || featureByLang.en);
-const validationByLang = {"id":{"usernameInvalid":"Username harus 5–24 karakter dan hanya boleh huruf, angka, underscore.","passwordInvalid":"Password minimal 9 karakter.","passwordMismatch":"Konfirmasi password tidak cocok.","usernameTaken":"Username sudah dipakai.","loginInvalid":"Username atau password salah.","emailInvalid":"Format username tidak valid.","genericError":"Terjadi kesalahan.","emailConfirmNeeded":"Akun dibuat, tetapi konfirmasi email masih aktif di Supabase. Matikan Confirm email."},"en":{"usernameInvalid":"Username must be 5–24 characters using only letters, numbers, and underscore.","passwordInvalid":"Password must be at least 9 characters.","passwordMismatch":"Passwords do not match.","usernameTaken":"That username is already in use.","loginInvalid":"Username or password is incorrect.","emailInvalid":"Invalid username format.","genericError":"Something went wrong.","emailConfirmNeeded":"The account was created, but email confirmation is still enabled in Supabase."},"es":{"usernameInvalid":"El usuario debe tener 5–24 caracteres y solo letras, números y guion bajo.","passwordInvalid":"La contraseña debe tener al menos 9 caracteres.","passwordMismatch":"Las contraseñas no coinciden.","usernameTaken":"Ese usuario ya está en uso.","loginInvalid":"El usuario o la contraseña son incorrectos.","emailInvalid":"Formato de usuario no válido.","genericError":"Algo salió mal.","emailConfirmNeeded":"La cuenta se creó, pero la confirmación por correo sigue activa en Supabase."},"pt":{"usernameInvalid":"O utilizador deve ter 5–24 caracteres e usar apenas letras, números e sublinhado.","passwordInvalid":"A palavra-passe deve ter pelo menos 9 caracteres.","passwordMismatch":"As palavras-passe não coincidem.","usernameTaken":"Esse utilizador já está em uso.","loginInvalid":"O utilizador ou a palavra-passe estão incorretos.","emailInvalid":"Formato de utilizador inválido.","genericError":"Ocorreu um erro.","emailConfirmNeeded":"A conta foi criada, mas a confirmação por email ainda está ativa no Supabase."},"fil":{"usernameInvalid":"Ang username ay dapat 5–24 na character at letters, numbers, underscore lang.","passwordInvalid":"Dapat hindi bababa sa 9 na character ang password.","passwordMismatch":"Hindi magkapareho ang password.","usernameTaken":"Ginagamit na ang username na iyon.","loginInvalid":"Mali ang username o password.","emailInvalid":"Hindi valid ang username format.","genericError":"May naganap na error.","emailConfirmNeeded":"Nagawa ang account pero naka-on pa ang email confirmation sa Supabase."},"fr":{"usernameInvalid":"Le nom doit contenir 5–24 caractères : lettres, chiffres ou underscore.","passwordInvalid":"Le mot de passe doit contenir au moins 9 caractères.","passwordMismatch":"Les mots de passe ne correspondent pas.","usernameTaken":"Ce nom est déjà utilisé.","loginInvalid":"Nom d’utilisateur ou mot de passe incorrect.","emailInvalid":"Format de nom invalide.","genericError":"Une erreur est survenue.","emailConfirmNeeded":"Le compte est créé, mais la confirmation par e-mail est encore activée dans Supabase."},"de":{"usernameInvalid":"Der Benutzername muss 5–24 Zeichen lang sein und nur Buchstaben, Zahlen und Unterstrich enthalten.","passwordInvalid":"Das Passwort muss mindestens 9 Zeichen haben.","passwordMismatch":"Die Passwörter stimmen nicht überein.","usernameTaken":"Dieser Benutzername ist bereits vergeben.","loginInvalid":"Benutzername oder Passwort ist falsch.","emailInvalid":"Ungültiges Benutzernamenformat.","genericError":"Ein Fehler ist aufgetreten.","emailConfirmNeeded":"Das Konto wurde erstellt, aber die E-Mail-Bestätigung ist in Supabase noch aktiviert."},"ja":{"usernameInvalid":"ユーザー名は5〜24文字で、英字・数字・アンダースコアのみ使用できます。","passwordInvalid":"パスワードは9文字以上必要です。","passwordMismatch":"パスワードが一致しません。","usernameTaken":"そのユーザー名はすでに使われています。","loginInvalid":"ユーザー名またはパスワードが正しくありません。","emailInvalid":"ユーザー名の形式が正しくありません。","genericError":"エラーが発生しました。","emailConfirmNeeded":"アカウントは作成されましたが、Supabaseのメール確認が有効です。"},"ko":{"usernameInvalid":"사용자 이름은 5~24자이며 영문, 숫자, 밑줄만 사용할 수 있습니다.","passwordInvalid":"비밀번호는 9자 이상이어야 합니다.","passwordMismatch":"비밀번호가 일치하지 않습니다.","usernameTaken":"이미 사용 중인 사용자 이름입니다.","loginInvalid":"사용자 이름 또는 비밀번호가 잘못되었습니다.","emailInvalid":"사용자 이름 형식이 잘못되었습니다.","genericError":"오류가 발생했습니다.","emailConfirmNeeded":"계정은 생성되었지만 Supabase 이메일 확인이 켜져 있습니다."},"zh":{"usernameInvalid":"用户名必须为5–24个字符，只能使用字母、数字和下划线。","passwordInvalid":"密码至少需要9个字符。","passwordMismatch":"两次密码不一致。","usernameTaken":"该用户名已被使用。","loginInvalid":"用户名或密码错误。","emailInvalid":"用户名格式无效。","genericError":"发生错误。","emailConfirmNeeded":"账号已创建，但Supabase仍启用邮箱确认。"},"zh-TW":{"usernameInvalid":"使用者名稱必須為5–24個字元，只能使用字母、數字與底線。","passwordInvalid":"密碼至少需要9個字元。","passwordMismatch":"兩次密碼不一致。","usernameTaken":"此使用者名稱已被使用。","loginInvalid":"使用者名稱或密碼錯誤。","emailInvalid":"使用者名稱格式無效。","genericError":"發生錯誤。","emailConfirmNeeded":"帳號已建立，但Supabase仍啟用電子郵件確認。"},"ru":{"usernameInvalid":"Имя пользователя должно содержать 5–24 символа: только буквы, цифры и _.","passwordInvalid":"Пароль должен содержать не менее 9 символов.","passwordMismatch":"Пароли не совпадают.","usernameTaken":"Это имя уже используется.","loginInvalid":"Неверное имя пользователя или пароль.","emailInvalid":"Неверный формат имени.","genericError":"Произошла ошибка.","emailConfirmNeeded":"Аккаунт создан, но подтверждение email включено в Supabase."},"hi":{"usernameInvalid":"Username 5–24 अक्षरों का होना चाहिए और केवल letters, numbers, underscore हो सकते हैं।","passwordInvalid":"Password कम से कम 9 characters का होना चाहिए।","passwordMismatch":"Passwords मेल नहीं खाते।","usernameTaken":"यह username पहले से उपयोग में है।","loginInvalid":"Username या password गलत है।","emailInvalid":"Username format मान्य नहीं है।","genericError":"एक त्रुटि हुई।","emailConfirmNeeded":"Account बन गया, लेकिन Supabase में email confirmation अभी चालू है।"},"ar":{"usernameInvalid":"يجب أن يكون اسم المستخدم من 5–24 حرفًا ويحتوي على أحرف وأرقام وشرطة سفلية فقط.","passwordInvalid":"يجب أن تتكون كلمة المرور من 9 أحرف على الأقل.","passwordMismatch":"كلمتا المرور غير متطابقتين.","usernameTaken":"اسم المستخدم مستخدم بالفعل.","loginInvalid":"اسم المستخدم أو كلمة المرور غير صحيحة.","emailInvalid":"تنسيق اسم المستخدم غير صالح.","genericError":"حدث خطأ.","emailConfirmNeeded":"تم إنشاء الحساب، لكن تأكيد البريد الإلكتروني ما زال مفعّلًا في Supabase."},"vi":{"usernameInvalid":"Tên người dùng phải có 5–24 ký tự và chỉ gồm chữ, số, dấu gạch dưới.","passwordInvalid":"Mật khẩu phải có ít nhất 9 ký tự.","passwordMismatch":"Mật khẩu không khớp.","usernameTaken":"Tên người dùng này đã được sử dụng.","loginInvalid":"Tên người dùng hoặc mật khẩu không đúng.","emailInvalid":"Định dạng tên người dùng không hợp lệ.","genericError":"Đã xảy ra lỗi.","emailConfirmNeeded":"Đã tạo tài khoản nhưng xác nhận email vẫn bật trong Supabase."},"th":{"usernameInvalid":"ชื่อผู้ใช้ต้องมี 5–24 ตัวและใช้เฉพาะตัวอักษร ตัวเลข และขีดล่าง","passwordInvalid":"รหัสผ่านต้องมีอย่างน้อย 9 ตัวอักษร","passwordMismatch":"รหัสผ่านไม่ตรงกัน","usernameTaken":"ชื่อผู้ใช้นี้ถูกใช้แล้ว","loginInvalid":"ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง","emailInvalid":"รูปแบบชื่อผู้ใช้ไม่ถูกต้อง","genericError":"เกิดข้อผิดพลาด","emailConfirmNeeded":"สร้างบัญชีแล้ว แต่ยังเปิดการยืนยันอีเมลใน Supabase"},"pl":{"usernameInvalid":"Nazwa musi mieć 5–24 znaków i zawierać tylko litery, cyfry oraz _.","passwordInvalid":"Hasło musi mieć co najmniej 9 znaków.","passwordMismatch":"Hasła nie są zgodne.","usernameTaken":"Ta nazwa jest już zajęta.","loginInvalid":"Nazwa użytkownika lub hasło są nieprawidłowe.","emailInvalid":"Nieprawidłowy format nazwy.","genericError":"Wystąpił błąd.","emailConfirmNeeded":"Konto utworzono, ale potwierdzenie e-mail jest nadal włączone w Supabase."},"it":{"usernameInvalid":"Il nome deve avere 5–24 caratteri e solo lettere, numeri e underscore.","passwordInvalid":"La password deve avere almeno 9 caratteri.","passwordMismatch":"Le password non coincidono.","usernameTaken":"Questo nome è già in uso.","loginInvalid":"Nome utente o password non corretti.","emailInvalid":"Formato del nome non valido.","genericError":"Si è verificato un errore.","emailConfirmNeeded":"Account creato, ma la conferma email è ancora attiva in Supabase."},"pt-PT":{"usernameInvalid":"O utilizador deve ter 5–24 caracteres e usar apenas letras, números e sublinhado.","passwordInvalid":"A palavra-passe deve ter pelo menos 9 caracteres.","passwordMismatch":"As palavras-passe não coincidem.","usernameTaken":"Esse utilizador já está em uso.","loginInvalid":"O utilizador ou a palavra-passe estão incorretos.","emailInvalid":"Formato de utilizador inválido.","genericError":"Ocorreu um erro.","emailConfirmNeeded":"A conta foi criada, mas a confirmação por email ainda está ativa no Supabase."}};
-for(const lang of Object.keys(ui)) Object.assign(ui[lang], validationByLang[lang] || validationByLang.en);
-
-const microByLang = {"id":{"chatSlow":"Tunggu sebentar sebelum mengirim lagi.","filenameInvalid":"Nama script harus diisi."},"en":{"chatSlow":"Please wait a moment before sending again.","filenameInvalid":"Enter a script name."},"es":{"chatSlow":"Espera un momento antes de enviar de nuevo.","filenameInvalid":"Escribe un nombre para el script."},"pt":{"chatSlow":"Aguarde um momento antes de enviar novamente.","filenameInvalid":"Insira um nome para o script."},"fil":{"chatSlow":"Maghintay sandali bago magpadala ulit.","filenameInvalid":"Maglagay ng pangalan ng script."},"tr":{"chatSlow":"Tekrar göndermeden önce biraz bekle.","filenameInvalid":"Bir script adı gir."},"fr":{"chatSlow":"Attendez un moment avant de renvoyer.","filenameInvalid":"Saisissez un nom de script."},"de":{"chatSlow":"Bitte kurz warten, bevor du erneut sendest.","filenameInvalid":"Gib einen Scriptnamen ein."},"ja":{"chatSlow":"もう少し待ってから送信してください。","filenameInvalid":"スクリプト名を入力してください。"},"ko":{"chatSlow":"다시 보내기 전에 잠시 기다려 주세요.","filenameInvalid":"스크립트 이름을 입력하세요."},"zh":{"chatSlow":"请稍等片刻再发送。","filenameInvalid":"请输入脚本名称。"},"zh-TW":{"chatSlow":"請稍等一下再發送。","filenameInvalid":"請輸入腳本名稱。"},"ru":{"chatSlow":"Подождите немного перед повторной отправкой.","filenameInvalid":"Введите имя скрипта."},"hi":{"chatSlow":"फिर से भेजने से पहले थोड़ा इंतज़ार करें।","filenameInvalid":"Script का नाम लिखें।"},"ar":{"chatSlow":"انتظر قليلًا قبل الإرسال مرة أخرى.","filenameInvalid":"اكتب اسم السكربت."},"vi":{"chatSlow":"Hãy đợi một chút trước khi gửi lại.","filenameInvalid":"Hãy nhập tên script."},"th":{"chatSlow":"กรุณารอสักครู่ก่อนส่งอีกครั้ง","filenameInvalid":"กรุณาใส่ชื่อสคริปต์"},"pl":{"chatSlow":"Poczekaj chwilę przed kolejną wiadomością.","filenameInvalid":"Wpisz nazwę skryptu."},"it":{"chatSlow":"Attendi un momento prima di inviare di nuovo.","filenameInvalid":"Inserisci un nome per lo script."},"pt-PT":{"chatSlow":"Aguarda um momento antes de enviar novamente.","filenameInvalid":"Introduz um nome para o script."}};
-for(const lang of Object.keys(ui)) Object.assign(ui[lang], microByLang[lang] || microByLang.en);
-
 function currentLang(){ return localStorage.getItem('cb_lang') || detectLanguage(); }
 function detectLanguage(){
   const supported=Object.keys(ui);
   const langs=[...(navigator.languages||[]),navigator.language||''];
   for(const raw of langs){
-    const l=String(raw).toLowerCase();
+    const l=raw.toLowerCase();
     if(l.startsWith('pt-pt')) return 'pt-PT';
     if(l.startsWith('pt')) return 'pt';
     if(l.startsWith('zh-tw')||l.startsWith('zh-hant')) return 'zh-TW';
@@ -175,15 +156,7 @@ function detectLanguage(){
 }
 function tr(k){ const d=ui[currentLang()]||ui.en; return d[k] ?? ui.en[k] ?? k; }
 function tutorialData(){ return tutorialText[currentLang()] || fallbackTutorial; }
-function escapeHtml(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));}
-function avatarFile(name){return /^profile[1-5]\.png$/.test(String(name||'')) ? String(name) : 'profile1.png';}
-function avatarSrc(name){
-  const safe=avatarFile(name);
-  return safe || 'logo.png';
-}
-function avatarImg(name, alt='Profile'){
-  const src=avatarSrc(name); return `<img class="avatar-img" src="${escapeHtml(src)}" alt="${escapeHtml(alt)}" onerror="this.onerror=null;this.src='logo.png'">`;
-}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));}
 
 function renderTutorials(){
   const box=$('#tutorialMenu'); if(!box) return;
@@ -194,54 +167,34 @@ function renderTutorials(){
   }).join('');
 }
 
-function updateAuthHeader(){
-  const guest=$('#guestAuth'); const userBox=$('#userAuth');
-  if(currentUser){
-    guest?.classList.add('hidden'); userBox?.classList.remove('hidden');
-    const username=currentUser.profile?.username || currentUser.user_metadata?.username || currentUser.email?.split('@')[0] || 'User';
-    if($('#topUsername')) $('#topUsername').textContent=username;
-    if($('#topAvatar')) {$('#topAvatar').src=avatarSrc(currentUser.profile?.avatar);$('#topAvatar').onerror=()=>{$('#topAvatar').src='logo.png';};}
-  }else{
-    guest?.classList.remove('hidden'); userBox?.classList.add('hidden');
-  }
-}
-
-async function loadProfile(){
-  if(!currentUser){currentUser=null;updateAuthHeader();return null;}
-  try{
-    let {data,error}=await sb.from('profiles').select('id,username,avatar').eq('id',currentUser.id).maybeSingle();
-    if(error) throw error;
-    if(!data){
-      const username=currentUser.user_metadata?.username || currentUser.email?.split('@')[0] || 'User';
-      const res=await sb.from('profiles').upsert({id:currentUser.id,username,avatar:'profile1.png'}).select('id,username,avatar').single();
-      if(res.error) throw res.error; data=res.data;
-    }
-    currentUser.profile=data; updateAuthHeader(); return data;
-  }catch(e){
-    console.error(e); currentUser.profile={username:currentUser.user_metadata?.username||'User',avatar:'profile1.png'}; updateAuthHeader(); return currentUser.profile;
-  }
+function updateMenuAuth(){
+  const logged=!!currentUser;
+  $('#loginBtn')?.classList.toggle('hidden',logged);
+  $('#registerBtn')?.classList.toggle('hidden',logged);
+  $('#menuLogoutBtn')?.classList.toggle('hidden',!logged);
+  loadProfile();
 }
 
 function applyLanguage(){
   const l=currentLang(),dict=ui[l]||ui.en;
-  document.documentElement.lang=l; document.documentElement.dir=l==='ar'?'rtl':'ltr';
+  document.documentElement.lang=l;
+  document.documentElement.dir=l==='ar'?'rtl':'ltr';
   document.querySelectorAll('[data-i18n]').forEach(el=>{ if(dict[el.dataset.i18n]!==undefined) el.textContent=dict[el.dataset.i18n]; });
-  document.querySelectorAll('[data-i18n-placeholder]').forEach(el=>{ if(dict[el.dataset.i18nPlaceholder]!==undefined) el.placeholder=dict[el.dataset.i18nPlaceholder]; });
-  const langSelect=$('#languageSelect'); if(langSelect) langSelect.value=l;
-  if($('#loginBtn')) $('#loginBtn').textContent=dict.login;
-  if($('#registerBtn')) $('#registerBtn').textContent=dict.register;
-  if($('#modalTitle')) $('#modalTitle').textContent=dict[mode==='login'?'login':'register'];
-  if($('#modalSub')) $('#modalSub').textContent=dict[mode==='login'?'loginSub':'registerSub'];
-  if($('#submitAuth')) $('#submitAuth').textContent=dict[mode==='login'?'login':'register'];
-  if($('#switchMode')) $('#switchMode').innerHTML=mode==='login'?`${escapeHtml(dict.noAccount)} <b>${escapeHtml(dict.register)}</b>`:`${escapeHtml(dict.hasAccount)} <b>${escapeHtml(dict.login)}</b>`;
-  if($('#username')) $('#username').placeholder=dict.username;
-  if($('#password')) $('#password').placeholder=dict.password;
-  if($('#confirm')) $('#confirm').placeholder=dict.confirm;
-  if(langSelect) langSelect.setAttribute('aria-label',dict.langLabel);
-  if($('#scriptFilename')) $('#scriptFilename').placeholder=dict.filename || dict.scriptFilename;
-  if($('#scriptCode')) $('#scriptCode').placeholder=dict.content || dict.scriptCode;
-  if($('#tutorialDetail')?.classList.contains('hidden')===false) $('#tutorialPractice').textContent=tr('practiceText');
-  renderTutorials(); renderScriptsIfPossible(); renderProfileAvatarChoices(); applyChatLanguage(); updateAuthHeader();
+  $('#languageSelect').value=l;
+  $('#loginBtn').textContent=dict.login; $('#registerBtn').textContent=dict.register;
+  $('#modalTitle').textContent=dict[mode==='login'?'login':'register'];
+  $('#modalSub').textContent=dict[mode==='login'?'loginSub':'registerSub'];
+  $('#submitAuth').textContent=dict[mode==='login'?'login':'register'];
+  $('#switchMode').innerHTML=mode==='login'?`${escapeHtml(dict.noAccount)} <b>${escapeHtml(dict.register)}</b>`:`${escapeHtml(dict.hasAccount)} <b>${escapeHtml(dict.login)}</b>`;
+  $('#username').placeholder=dict.username; $('#password').placeholder=dict.password; $('#confirm').placeholder=dict.confirm;
+  $('#languageSelect').setAttribute('aria-label',dict.langLabel);
+  loadProfile();
+  $('#scriptFilename').placeholder=dict.scriptFilename;
+  $('#scriptCode').placeholder=dict.scriptCode;
+  $('#viewAll').title=dict.back;
+  renderTutorials();
+  renderScriptsIfPossible();
+  applyChatLanguage();
 }
 
 function openAuth(m, silent=false){
@@ -249,206 +202,206 @@ function openAuth(m, silent=false){
   $('#modalTitle').textContent=dict[m==='login'?'login':'register'];
   $('#modalSub').textContent=dict[m==='login'?'loginSub':'registerSub'];
   $('#submitAuth').textContent=dict[m==='login'?'login':'register'];
-  $('#confirm').style.display=m==='login'?'none':'block'; $('#confirm').required=m==='register';
+  $('#confirm').style.display=m==='login'?'none':'block';
+  $('#confirm').required=m==='register';
   $('#username').placeholder=dict.username; $('#password').placeholder=dict.password; $('#confirm').placeholder=dict.confirm;
   $('#switchMode').innerHTML=m==='login'?`${escapeHtml(dict.noAccount)} <b>${escapeHtml(dict.register)}</b>`:`${escapeHtml(dict.hasAccount)} <b>${escapeHtml(dict.login)}</b>`;
-  if(!silent){ $('#error').textContent=''; $('#error').style.color=''; $('#modal').classList.remove('hidden'); }
-}
-
-function authMessage(key, fallback){ return tr(key) || fallback; }
-async function submitAuth(e){
-  e.preventDefault();
-  const error=$('#error'); error.textContent=''; error.style.color='';
-  const username=$('#username').value.trim(), password=$('#password').value, confirm=$('#confirm').value;
-  if(!/^[A-Za-z0-9_]{5,24}$/.test(username)){error.textContent=tr('usernameInvalid');return;}
-  if(password.length<9){error.textContent=tr('passwordInvalid');return;}
-  if(mode==='register' && password!==confirm){error.textContent=tr('passwordMismatch');return;}
-  const email=username.toLowerCase()+'@cb-scriptstore.local';
-  try{
-    if(mode==='register'){
-      const {data,error:err}=await sb.auth.signUp({email,password,options:{data:{username,avatar:'profile1.png'}}});
-      if(err) throw err;
-      if(!data.session){ throw new Error(tr('emailConfirmNeeded')); }
-      await syncAuth(); await loadProfile(); $('#modal').classList.add('hidden');
-      startRealtime(); await loadScripts();
-      // Registration always lands on Home, never the tutorial/workspace page.
-      window.location.hash='#home'; routePage();
-    }else{
-      const {data,error:err}=await sb.auth.signInWithPassword({email,password});
-      if(err) throw err;
-      token=data.session?.access_token||null; currentUser=data.user||null; await loadProfile();
-      $('#modal').classList.add('hidden'); startRealtime(); await loadScripts(); routePage();
-    }
-  }catch(err){error.textContent=friendlyAuthError(err);error.style.color='#ff7690';}
-}
-function friendlyAuthError(error){
-  const m=String(error?.message||error||'');
-  if(/already registered|already exists|user already registered/i.test(m)) return tr('usernameTaken');
-  if(/invalid login credentials|invalid credentials/i.test(m)) return tr('loginInvalid');
-  if(/duplicate key|unique constraint/i.test(m)) return tr('usernameTaken');
-  if(/email.*invalid/i.test(m)) return tr('emailInvalid');
-  return m || tr('genericError');
-}
-async function syncAuth(){
-  const {data:{session}}=await sb.auth.getSession(); token=session?.access_token||null; currentUser=session?.user||null; if(currentUser) await loadProfile(); else updateAuthHeader(); return session;
+  if(!silent) { $('#error').textContent=''; $('#error').style.color=''; $('#modal').classList.remove('hidden'); }
 }
 
 function openTutorial(index){
-  const x=tutorialData()[index],base=levels[index]; if(!x||!base)return;
-  $('#tutorialDetailTitle').textContent=x[0]; $('#tutorialDetailDesc').textContent=x[1]; $('#tutorialWhy').textContent=x[2]; $('#tutorialWhat').textContent=x[1]; $('#tutorialExplain').textContent=x[3]; $('#tutorialPractice').textContent=tr('practiceText'); $('#tutorialCode').textContent=base.code;
-  $('#tutorialDetail').classList.remove('hidden'); document.body.classList.add('modal-open');
+  const x=tutorialData()[index]; const base=levels[index];
+  if(!x || !base) return;
+  $('#tutorialDetailTitle').textContent=x[0];
+  $('#tutorialDetailDesc').textContent=x[1];
+  $('#tutorialWhy').textContent=x[2];
+  $('#tutorialWhat').textContent=x[1];
+  $('#tutorialExplain').textContent=x[3];
+  $('#tutorialPractice').textContent=tr('practiceText');
+  $('#tutorialCode').textContent=base.code;
+  $('#tutorialDetail').classList.remove('hidden');
+  document.body.classList.add('modal-open');
 }
 function closeTutorial(){ $('#tutorialDetail').classList.add('hidden'); document.body.classList.remove('modal-open'); }
 
-async function fetchProfileMap(ids){
-  const unique=[...new Set((ids||[]).filter(Boolean))]; if(!unique.length)return new Map();
-  const {data,error}=await sb.from('profiles').select('id,username,avatar').in('id',unique); if(error)throw error;
-  return new Map((data||[]).map(p=>[p.id,p]));
-}
-
-let loadedScripts=new Map();
-async function renderScriptsIfPossible(){
-  const box=$('#cards'); if(!box)return;
-  await syncAuth();
-  if(!currentUser){box.innerHTML=`<div class="empty">${escapeHtml(tr('needLoginWorkspace'))}</div>`; if($('#scriptCount'))$('#scriptCount').textContent='0'; return;}
-  try{
-    const {data:rows,error}=await sb.from('scripts').select('id,filename,visibility,kind,created_at,updated_at,code,user_id').eq('user_id',currentUser.id).order('updated_at',{ascending:false}).order('id',{ascending:false});
-    if(error)throw error; loadedScripts=new Map((rows||[]).map(s=>[String(s.id),s])); if($('#scriptCount'))$('#scriptCount').textContent=String(rows?.length||0);
-    if(!rows?.length){box.innerHTML=`<div class="empty">${escapeHtml(tr('noScripts'))}</div>`;return;}
-    box.innerHTML=rows.map(s=>`
-      <article class="card script-card" data-script-card="${escapeHtml(String(s.id))}">
-        <div class="card-head"><div class="icon">${s.kind==='text'?'📄':'&lt;/&gt;'}</div><div class="script-card-main"><h3>${escapeHtml(s.filename)}</h3><small>${escapeHtml(s.kind==='text'?tr('text'):tr('code'))} · ${escapeHtml(s.visibility==='public'?tr('public'):tr('private'))}</small></div>
-          <div class="script-more-wrap"><button class="kebab-btn" type="button" aria-label="${escapeHtml(tr('more'))}" data-kebab="${escapeHtml(String(s.id))}">⋯</button>
-            <div class="script-menu hidden" data-menu="${escapeHtml(String(s.id))}">
-              <button type="button" data-visit="${escapeHtml(String(s.id))}">👁️ ${escapeHtml(tr('visit'))}</button>
-              <button type="button" data-edit="${escapeHtml(String(s.id))}">✏️ ${escapeHtml(tr('edit'))}</button>
-              ${s.visibility==='public'?`<a href="raw.html?id=${encodeURIComponent(s.id)}" target="_blank" rel="noreferrer">🔗 ${escapeHtml(tr('raw'))}</a><button type="button" data-copyraw="${escapeHtml(String(s.id))}">📋 ${escapeHtml(tr('copyRaw'))}</button>`:''}
-              <button type="button" class="danger-text" data-delete="${escapeHtml(String(s.id))}">🗑️ ${escapeHtml(tr('delete'))}</button>
-            </div>
-          </div>
-        </div>
-        <div class="card-foot"><span class="tag">${escapeHtml(s.visibility==='public'?tr('public'):tr('private'))}</span><small>${escapeHtml(new Date(s.updated_at).toLocaleString(currentLang()))}</small></div>
-      </article>`).join('');
-  }catch(e){box.innerHTML=`<div class="empty">${escapeHtml(e.message||tr('profileError'))}</div>`;}
-}
-async function loadScripts(){await renderScriptsIfPossible();}
-function resetScriptForm(clearMessage=true){if($('#scriptId'))$('#scriptId').value='';if($('#scriptFilename'))$('#scriptFilename').value='';if($('#scriptCode'))$('#scriptCode').value='';if($('#scriptType'))$('#scriptType').value='code';if($('#scriptVisibility'))$('#scriptVisibility').value='private';if($('#scriptError')&&clearMessage){$('#scriptError').textContent='';$('#scriptError').style.color='';}}
-function openNewScript(){window.location.hash='#workspace';resetScriptForm();$('#scriptFilename')?.focus();}
-function editScript(s){if(!s)return;window.location.hash='#workspace';$('#scriptId').value=s.id;$('#scriptFilename').value=s.filename;$('#scriptCode').value=s.code;$('#scriptType').value=s.kind||'code';$('#scriptVisibility').value=s.visibility||'private';$('#scriptError').textContent='';$('#scriptFilename').focus();}
-function visitScript(id){window.open(`view.html?id=${encodeURIComponent(id)}`,'_blank','noopener,noreferrer');}
-async function copyRawLink(id){
-  const url=new URL(`raw.html?id=${encodeURIComponent(id)}`,location.href).href;
-  try{await navigator.clipboard.writeText(url); showScriptMessage(tr('copied'),true);}catch(e){showScriptMessage(tr('copyFailed'),false);}
-}
-function showScriptMessage(msg,ok){const el=$('#scriptError');if(!el)return;el.style.color=ok?'#28d9a4':'#ff7690';el.textContent=msg;}
-async function saveScript(e){
-  e.preventDefault(); await syncAuth(); const err=$('#scriptError');err.textContent='';err.style.color='';
-  if(!currentUser){err.textContent=tr('loginRequired');return;}
-  const id=$('#scriptId').value,filename=$('#scriptFilename').value.trim(),code=$('#scriptCode').value,kind=$('#scriptType').value==='text'?'text':'code',visibility=$('#scriptVisibility').value==='public'?'public':'private';
-  if(filename.length<1||filename.length>120){err.textContent=tr('filenameInvalid');return;}
-  if(code.length>500000){err.textContent=tr('invalidFile');return;}
-  try{
-    if(!id){const {count,error:e1}=await sb.from('scripts').select('id',{count:'exact',head:true}).eq('user_id',currentUser.id);if(e1)throw e1;if((count||0)>=50){err.textContent=tr('maxScripts');return;}}
-    let result;
-    if(id){result=await sb.from('scripts').update({filename,code,kind,visibility,updated_at:new Date().toISOString()}).eq('id',id).eq('user_id',currentUser.id).select('id').single();}
-    else{result=await sb.from('scripts').insert({user_id:currentUser.id,filename,code,kind,visibility}).select('id').single();}
-    if(result.error)throw result.error; err.style.color='#28d9a4';err.textContent=tr(id?'updated':'saved');resetScriptForm(false);await loadScripts();
-  }catch(e){err.style.color='#ff7690';err.textContent=/Maximum 50 scripts/i.test(String(e.message))?tr('maxScripts'):(e.message||tr('profileError'));}
-}
-async function deleteScript(id){
-  if(!currentUser)return;
-  if(!confirm(tr('confirmDelete')))return;
-  try{const {error}=await sb.from('scripts').delete().eq('id',id).eq('user_id',currentUser.id);if(error)throw error;showScriptMessage(tr('deleted'),true);resetScriptForm(false);await loadScripts();}catch(e){showScriptMessage(e.message||tr('profileError'),false);}
-}
-function closeMenus(){document.querySelectorAll('.script-menu').forEach(el=>el.classList.add('hidden'));}
-
-document.addEventListener('click',e=>{
-  const kb=e.target.closest('[data-kebab]');
-  if(kb){e.stopPropagation();const id=kb.dataset.kebab;const menu=$(`[data-menu="${CSS.escape(id)}"]`);const wasHidden=menu?.classList.contains('hidden');closeMenus();if(wasHidden)menu?.classList.remove('hidden');return;}
-  if(e.target.closest('.script-menu')){
-    const b=e.target.closest('button');if(!b)return;const id=b.closest('.script-menu')?.dataset.menu;
-    if(b.dataset.visit)visitScript(id); else if(b.dataset.edit)editScript(loadedScripts.get(String(id))); else if(b.dataset.copyraw)copyRawLink(id); else if(b.dataset.delete)deleteScript(id);
-    closeMenus();return;
+async function loadProfile(){
+  const nameEl=$('#profileUsername'), emailEl=$('#profileEmail'), menuName=$('#menuUsername'), menuStatus=$('#menuStatus');
+  if(!currentUser){
+    if(nameEl)nameEl.textContent='Guest';
+    if(emailEl)emailEl.textContent=tr('profileGuest');
+    if(menuName)menuName.textContent='Guest';
+    if(menuStatus)menuStatus.textContent=tr('notLoggedIn');
+    return;
   }
-  closeMenus();
-});
-
-async function uploadFile(e){
-  const file=e.target.files?.[0]; if(!file)return; e.target.value='';
-  if(file.size>500000){showScriptMessage(tr('invalidFile'),false);return;}
-  try{const text=await file.text();$('#scriptFilename').value=file.name.slice(0,120);$('#scriptCode').value=text;$('#scriptType').value=/\.(lua|luau|js|ts|py|rb|java|c|cpp|h|json|xml|html|css)$/i.test(file.name)?'code':'text';showScriptMessage(tr('fileLoaded'),true);window.location.hash='#workspace';}catch(e){showScriptMessage(tr('invalidFile'),false);}
+  let username=currentUser.user_metadata?.username || '';
+  try{
+    const {data,error}=await sb.from('profiles').select('username').eq('id',currentUser.id).maybeSingle();
+    if(!error && data?.username) username=data.username;
+  }catch(_){}
+  username=username || currentUser.email?.split('@')[0] || 'User';
+  if(nameEl)nameEl.textContent=username;
+  if(emailEl)emailEl.textContent=tr('loggedIn');
+  if(menuName)menuName.textContent=username;
+  if(menuStatus)menuStatus.textContent=tr('loggedIn');
+}
+function closeMenu(){const menu=$('#sideMenu'),back=$('#menuBackdrop'),toggle=$('#menuToggle');if(menu)menu.classList.remove('open');if(back)back.classList.add('hidden');if(toggle){toggle.setAttribute('aria-expanded','false');toggle.classList.remove('active');}if(menu)menu.setAttribute('aria-hidden','true');}
+function openMenu(){const menu=$('#sideMenu'),back=$('#menuBackdrop'),toggle=$('#menuToggle');if(menu)menu.classList.add('open');if(back)back.classList.remove('hidden');if(toggle){toggle.setAttribute('aria-expanded','true');toggle.classList.add('active');}if(menu)menu.setAttribute('aria-hidden','false');loadProfile();}
+function goTo(route){
+  closeMenu();
+  if((route==='create'||route==='workspace'||route==='profile'||route==='chat') && !currentUser){ pendingRoute=route; openAuth('login'); return; }
+  window.location.hash=route==='home'?'#home':'#'+route;
 }
 
-let profileDraftAvatar='profile1.png';
-function renderProfileAvatarChoices(){
-  const box=$('#avatarChoices');if(!box)return;
-  box.innerHTML=[1,2,3,4,5].map(n=>{const f=`profile${n}.png`;const active=avatarFile(profileDraftAvatar)===f?' selected':'';return `<button type="button" class="avatar-choice${active}" data-avatar="${f}">${avatarImg(f,'')}</button>`;}).join('');
-  box.querySelectorAll('[data-avatar]').forEach(b=>b.onclick=()=>{profileDraftAvatar=b.dataset.avatar;renderProfileAvatarChoices();});
+async function submitAuth(e){
+  e.preventDefault();
+  const dict=ui[currentLang()]||ui.en; const error=$('#error'); error.textContent=''; error.style.color='';
+  const username=$('#username').value.trim(), password=$('#password').value, confirm=$('#confirm').value;
+  if(!/^[A-Za-z0-9_]{5,24}$/.test(username)){error.textContent=currentLang()==='id'?'Username 5–24 karakter, hanya huruf, angka, dan underscore.':'Username must be 5–24 characters using only letters, numbers, and underscore.';return;}
+  if(password.length<9){error.textContent=currentLang()==='id'?'Password minimal 9 karakter.':'Password must be at least 9 characters.';return;}
+  if(mode==='register' && password!==confirm){error.textContent=currentLang()==='id'?'Konfirmasi password tidak cocok.':'Passwords do not match.';return;}
+  const email=username.toLowerCase()+'@cb-scriptstore.local';
+  try{
+    if(mode==='register'){
+      const {data,error:err}=await sb.auth.signUp({email,password,options:{data:{username}}});
+      if(err) throw err;
+      if(!data.session){
+        throw new Error('Akun dibuat, tetapi Supabase masih meminta konfirmasi email. Matikan “Confirm email” di Authentication → Providers → Email, lalu coba register lagi.');
+      }
+      await syncAuth();
+      $('#modal').classList.add('hidden');
+      startRealtime(); await loadScripts(); await loadProfile();
+      if(pendingRoute){ const r=pendingRoute; pendingRoute=null; window.location.hash='#'+r; }
+    }else{
+      const {data,error:err}=await sb.auth.signInWithPassword({email,password});
+      if(err) throw err;
+      await syncAuth(); $('#modal').classList.add('hidden'); startRealtime(); await loadScripts(); await loadProfile();
+      if(pendingRoute){ const r=pendingRoute; pendingRoute=null; window.location.hash='#'+r; }
+    }
+  }catch(err){ error.textContent=friendlyAuthError(err); error.style.color='#ff7690'; }
 }
-function openProfile(){
-  if(!currentUser)return openAuth('login');
-  profileDraftAvatar=avatarFile(currentUser.profile?.avatar||'profile1.png');
-  $('#profileUsername').value=currentUser.profile?.username||currentUser.user_metadata?.username||'';
-  renderProfileAvatarChoices(); $('#profileModal').classList.remove('hidden');
-}
-async function saveProfile(){
-  if(!currentUser)return;
-  const res=await sb.from('profiles').update({avatar:avatarFile(profileDraftAvatar),updated_at:new Date().toISOString()}).eq('id',currentUser.id).select('id,username,avatar').single();
-  if(res.error){$('#profileError').textContent=res.error.message;return;}
-  currentUser.profile=res.data;updateAuthHeader();$('#profileError').style.color='#28d9a4';$('#profileError').textContent=tr('profileSaved');
-}
-function closeProfile(){$('#profileModal').classList.add('hidden');}
 
-let presenceTimer=null,onlineTimer=null,chatTimer=null,chatLastId=0,chatLoading=false,lastChatAt=0;
-function stopRealtime(){if(presenceTimer){clearInterval(presenceTimer);presenceTimer=null;}if(onlineTimer){clearInterval(onlineTimer);onlineTimer=null;}stopChatPolling();}
-async function heartbeat(){if(!currentUser)return;const {error}=await sb.from('presence').upsert({user_id:currentUser.id,last_seen:new Date().toISOString()});if(error)console.debug('presence',error);}
+async function renderScriptsIfPossible(){
+  const box=$('#cards'); if(!box) return;
+  await syncAuth();
+  if(!token){
+    box.innerHTML=`<div class="empty">${escapeHtml(tr('needLoginWorkspace'))}</div>`;
+    $('#scriptCount').textContent='0'; return;
+  }
+  try{
+    const {data:rows,error}=await sb.from('scripts').select('id,filename,visibility,created_at,updated_at,code').eq('user_id',currentUser.id).order('updated_at',{ascending:false}).order('id',{ascending:false});
+    if(error) throw error;
+    $('#scriptCount').textContent=String(rows.length);
+    if(!rows.length){box.innerHTML=`<div class="empty">${escapeHtml(tr('empty'))}</div>`;return;}
+    box.innerHTML=rows.map(s=>`<article class="card"><div class="card-head"><div class="icon">&lt;/&gt;</div><div><h3>${escapeHtml(s.filename)}</h3><small>${escapeHtml(s.visibility)}</small></div></div><div class="card-foot"><span class="tag">${escapeHtml(s.visibility)}</span><div class="script-actions"><button class="mini-btn" data-edit="${s.id}">${escapeHtml(tr('edit'))}</button><button class="mini-btn danger" data-delete="${s.id}">${escapeHtml(tr('delete'))}</button>${s.visibility==='public'?`<a class="raw" href="raw.html?id=${encodeURIComponent(s.id)}" target="_blank" rel="noreferrer">${escapeHtml(tr('raw'))}</a>`:''}</div></div></article>`).join('');
+    box.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>editScript(rows.find(x=>String(x.id)===b.dataset.edit)));
+    box.querySelectorAll('[data-delete]').forEach(b=>b.onclick=()=>deleteScript(b.dataset.delete));
+  }catch(e){box.innerHTML=`<div class="empty">${escapeHtml(e.message||tr('needLoginWorkspace'))}</div>`;}
+}
+async function loadScripts(){ await renderScriptsIfPossible(); }
+
+async function saveScript(e){
+  e.preventDefault(); const err=$('#scriptError');err.textContent=''; await syncAuth();
+  if(!token){err.textContent=tr('needLoginWorkspace');return;}
+  const id=$('#scriptId').value, filename=$('#scriptFilename').value.trim(), code=$('#scriptCode').value, visibility=$('#scriptVisibility').value;
+  if(filename.length<1 || filename.length>120){err.textContent='Invalid filename.';return;}
+  if(code.length>500000){err.textContent='Script terlalu panjang.';return;}
+  try{
+    if(!id){ const {count,error:e1}=await sb.from('scripts').select('id',{count:'exact',head:true}).eq('user_id',currentUser.id); if(e1)throw e1; if((count||0)>=50){err.textContent=currentLang()==='id'?'Maksimal 50 script per akun.':'Maximum 50 scripts per account.';return;} }
+    let result;
+    if(id){ result=await sb.from('scripts').update({filename,code,visibility,updated_at:new Date().toISOString()}).eq('id',id).eq('user_id',currentUser.id).select('id').single(); }
+    else { result=await sb.from('scripts').insert({user_id:currentUser.id,filename,code,visibility}).select('id').single(); }
+    if(result.error)throw result.error;
+    err.style.color='#28d9a4';err.textContent=tr(id?'updated':'saved');resetScriptForm(false);await loadScripts();
+  }catch(e){err.style.color='#ff7690';err.textContent=e.message||'Gagal menyimpan script.';}
+}
+function resetScriptForm(clearMessage=true){$('#scriptId').value='';$('#scriptFilename').value='';$('#scriptCode').value='';$('#scriptVisibility').value='private';if(clearMessage){$('#scriptError').textContent='';$('#scriptError').style.color='';}}
+function editScript(s){if(!s)return;$('#scriptId').value=s.id;$('#scriptFilename').value=s.filename;$('#scriptCode').value=s.code;$('#scriptVisibility').value=s.visibility;window.location.hash='#workspace';}
+async function deleteScript(id){if(!confirm(tr('confirmDelete')))return;try{const {error}=await sb.from('scripts').delete().eq('id',id).eq('user_id',currentUser.id);if(error)throw error;$('#scriptError').style.color='#28d9a4';$('#scriptError').textContent=tr('deleted');resetScriptForm(false);await loadScripts();}catch(e){$('#scriptError').style.color='#ff7690';$('#scriptError').textContent=e.message||'Delete failed.';}}
+async function logout(){await sb.auth.signOut();stopRealtime();token=null;currentUser=null;resetScriptForm();await loadScripts();routePage();}
+
+let presenceTimer=null, onlineTimer=null, chatTimer=null, chatLastId=0, chatLoading=false, lastChatAt=0;
+function stopRealtime(){if(presenceTimer){clearInterval(presenceTimer);presenceTimer=null;}if(onlineTimer){clearInterval(onlineTimer);onlineTimer=null;}if(chatTimer){clearInterval(chatTimer);chatTimer=null;}}
+async function heartbeat(){await syncAuth();if(!currentUser)return;await sb.from('presence').upsert({user_id:currentUser.id,last_seen:new Date().toISOString()});}
 function startRealtime(){stopRealtime();if(!currentUser)return;heartbeat();presenceTimer=setInterval(heartbeat,20000);refreshOnline();onlineTimer=setInterval(refreshOnline,10000);if(window.location.hash==='#chat')startChatPolling();}
-async function refreshOnline(){
-  const box=$('#onlineUsers');if(!box)return;await syncAuth();
-  if(!currentUser){box.innerHTML=`<div class="empty">${escapeHtml(tr('chatLogin'))}</div>`;$('#onlineCount').textContent='0';return;}
-  try{const cutoff=new Date(Date.now()-60000).toISOString();const {data,error}=await sb.from('presence').select('user_id,last_seen').gt('last_seen',cutoff).order('last_seen',{ascending:false}).limit(100);if(error)throw error;const map=await fetchProfileMap((data||[]).map(x=>x.user_id));const users=(data||[]).map(x=>({id:x.user_id,username:map.get(x.user_id)?.username||'User',avatar:map.get(x.user_id)?.avatar||'profile1.png'}));$('#onlineCount').textContent=String(users.length);$('#onlineCountSide').textContent=String(users.length);box.innerHTML=users.length?users.map(u=>`<div class="online-user">${avatarImg(u.avatar,u.username)}<span class="online-dot"></span><span>${escapeHtml(u.username)}</span></div>`).join(''):`<div class="empty">${escapeHtml(tr('noMessages'))}</div>`;}catch(e){box.innerHTML=`<div class="empty">${escapeHtml(tr('chatError'))}</div>`;}
-}
-function normalizeChat(rows,profiles){const map=profiles||new Map();return (rows||[]).map(m=>{const p=map.get(m.user_id);return {id:m.id,user_id:m.user_id,message:m.message,created_at:m.created_at,username:p?.username||currentUser?.profile?.username||'User',avatar:p?.avatar||'profile1.png'};});}
-function renderChatMessages(rows,append=false){
-  const box=$('#chatMessages');if(!box)return;if(!append)box.innerHTML='';if(!rows.length&&!box.children.length){box.innerHTML=`<div class="empty">${escapeHtml(tr('noMessages'))}</div>`;return;}const empty=box.querySelector('.empty');if(empty)empty.remove();
-  for(const m of rows){if(box.querySelector(`[data-id="${CSS.escape(String(m.id))}"]`))continue;const article=document.createElement('article');article.className='chat-message';article.dataset.id=m.id;const time=new Date(m.created_at).toLocaleTimeString(currentLang(),{hour:'2-digit',minute:'2-digit'});article.innerHTML=`<div class="chat-meta"><div class="chat-user">${avatarImg(m.avatar,m.username)}<b>${escapeHtml(m.username)}</b></div><time>${escapeHtml(time)}</time></div><div class="chat-text">${escapeHtml(m.message).replace(/\n/g,'<br>')}</div>`;box.appendChild(article);chatLastId=Math.max(chatLastId,Number(m.id)||0);}box.scrollTop=box.scrollHeight;
-}
-async function loadChat(initial=false){
-  await syncAuth();if(!currentUser){stopChatPolling();const box=$('#chatMessages');if(box)box.innerHTML=`<div class="empty">${escapeHtml(tr('chatLogin'))}</div>`;return;}if(chatLoading)return;chatLoading=true;
-  try{let q=sb.from('chat_messages').select('id,user_id,message,created_at');if(!initial&&chatLastId)q=q.gt('id',chatLastId).order('id',{ascending:true}).limit(60);else q=q.order('id',{ascending:false}).limit(60);const {data,error}=await q;if(error)throw error;const map=await fetchProfileMap((data||[]).map(x=>x.user_id));const rows=(initial?data.reverse():data);renderChatMessages(normalizeChat(rows,map),!(initial||!chatLastId));}
-  catch(e){if(initial){const box=$('#chatMessages');if(box)box.innerHTML=`<div class="empty">${escapeHtml(tr('chatError'))}<br><small>${escapeHtml(String(e.message||''))}</small></div>`;}}
-  finally{chatLoading=false;}
-}
-function startChatPolling(){if(!currentUser)return;stopChatPolling();chatLastId=0;loadChat(true);chatTimer=setInterval(()=>{if(window.location.hash==='#chat')loadChat(false);},2500);}
+async function refreshOnline(){const box=$('#onlineUsers');if(!box)return;await syncAuth();if(!currentUser){box.innerHTML=`<div class="empty">${escapeHtml(tr('chatLogin'))}</div>`;$('#onlineCount').textContent='0';return;}try{const cutoff=new Date(Date.now()-60000).toISOString();const {data,error}=await sb.from('presence').select('user_id,last_seen,profiles(username)').gt('last_seen',cutoff).order('last_seen',{ascending:false}).limit(100);if(error)throw error;const users=(data||[]).map(x=>({id:x.user_id,username:x.profiles?.username||'User',last_seen:x.last_seen}));$('#onlineCount').textContent=String(users.length);if($('#onlineCountSide'))$('#onlineCountSide').textContent=String(users.length);box.innerHTML=users.length?users.map(u=>`<div class="online-user"><span class="online-dot"></span><span>${escapeHtml(u.username)}</span></div>`).join(''):`<div class="empty">${escapeHtml(tr('noMessages'))}</div>`;}catch(e){box.innerHTML=`<div class="empty">${escapeHtml(e.message||tr('chatError'))}</div>`;}}
+function normalizeChat(rows){return (rows||[]).map(m=>({id:m.id,user_id:m.user_id,message:m.message,created_at:m.created_at,username:m.profiles?.username||currentUser?.user_metadata?.username||'User'}));}
+function renderChatMessages(rows, append=false){const box=$('#chatMessages');if(!box)return;if(!append)box.innerHTML='';if(!rows.length&&!box.children.length){box.innerHTML=`<div class="empty">${escapeHtml(tr('noMessages'))}</div>`;return;}const empty=box.querySelector('.empty');if(empty)empty.remove();for(const m of rows){const article=document.createElement('article');article.className='chat-message';article.dataset.id=m.id;const time=new Date(m.created_at).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});article.innerHTML=`<div class="chat-meta"><b>${escapeHtml(m.username)}</b><time>${escapeHtml(time)}</time></div><div class="chat-text">${escapeHtml(m.message).replace(/\n/g,'<br>')}</div>`;box.appendChild(article);chatLastId=Math.max(chatLastId,Number(m.id)||0);}box.scrollTop=box.scrollHeight;}
+async function loadChat(initial=false){await syncAuth();if(!currentUser){stopChatPolling();const box=$('#chatMessages');if(box)box.innerHTML=`<div class="empty">${escapeHtml(tr('chatLogin'))}</div>`;return;}if(chatLoading)return;chatLoading=true;try{let q=sb.from('chat_messages').select('id,user_id,message,created_at,profiles(username)').order('id',{ascending:false}).limit(60);if(!initial&&chatLastId)q=q.gt('id',chatLastId).order('id',{ascending:true});const {data,error}=await q;if(error)throw error;const rows=normalizeChat(initial?data.reverse():data);renderChatMessages(rows,!(initial||!chatLastId));}catch(e){if(initial){const box=$('#chatMessages');if(box)box.innerHTML=`<div class="empty">${escapeHtml(e.message||tr('chatError'))}</div>`;}}finally{chatLoading=false;}}
+function startChatPolling(){if(!currentUser)return;if(chatTimer)clearInterval(chatTimer);chatLastId=0;loadChat(true);chatTimer=setInterval(()=>{if(window.location.hash==='#chat')loadChat(false);},2500);}
 function stopChatPolling(){if(chatTimer){clearInterval(chatTimer);chatTimer=null;}}
-async function sendChat(e){
-  e.preventDefault();await syncAuth();if(!currentUser){openAuth('login');return;}const input=$('#chatInput'),err=$('#chatError'),message=input.value.trim();err.textContent='';if(!message)return;if(message.length>500){err.textContent=tr('invalidFile');return;}const now=Date.now();if(now-lastChatAt<1200){err.textContent=tr('chatSlow');return;}
-  try{const {data,error}=await sb.from('chat_messages').insert({user_id:currentUser.id,message}).select('id,user_id,message,created_at').single();if(error)throw error;lastChatAt=now;input.value='';const map=await fetchProfileMap([currentUser.id]);renderChatMessages(normalizeChat([data],map),true);}catch(e){err.textContent=e.message||tr('chatError');}
-}
-function applyChatLanguage(){
-  [['chatTitle','chatTitle'],['chatDesc','chatDesc'],['onlineTitle','onlineNow']].forEach(([id,key])=>{const el=$('#'+id);if(el)el.textContent=tr(key);});const input=$('#chatInput');if(input)input.placeholder=tr('chatPlaceholder');const send=$('#sendChat');if(send)send.textContent=tr('send');if(token&&window.location.hash==='#chat')loadChat(true);
-}
+async function sendChat(e){e.preventDefault();await syncAuth();if(!currentUser){openAuth('login');return;}const input=$('#chatInput'),err=$('#chatError'),message=input.value.trim();err.textContent='';if(!message)return;const now=Date.now();if(now-lastChatAt<1200){err.textContent='Tunggu sebentar sebelum mengirim pesan lagi.';return;}try{const {data,error}=await sb.from('chat_messages').insert({user_id:currentUser.id,message}).select('id,user_id,message,created_at,profiles(username)').single();if(error)throw error;lastChatAt=now;input.value='';renderChatMessages(normalizeChat([data]),true);}catch(e){err.textContent=e.message||tr('chatError');}}
+function applyChatLanguage(){const ids=[['chatTitle','chatTitle'],['chatDesc','chatDesc'],['onlineTitle','onlineNow']];ids.forEach(([id,key])=>{const el=$('#'+id);if(el)el.textContent=tr(key);});const input=$('#chatInput');if(input)input.placeholder=tr('chatPlaceholder');const send=$('#sendChat');if(send)send.textContent=tr('send');if(token)loadChat(true);}
 
-$('#languageSelect')?.addEventListener('change',e=>{localStorage.setItem('cb_lang',e.target.value);applyLanguage();});
-$('#scriptForm')?.addEventListener('submit',saveScript);
-$('#newScriptBtn')?.addEventListener('click',openNewScript);$('#newScriptTopBtn')?.addEventListener('click',openNewScript);$('#uploadFileBtn')?.addEventListener('click',()=>$('#fileUpload')?.click());$('#fileUpload')?.addEventListener('change',uploadFile);
-$('#logoutBtn')?.addEventListener('click',async()=>{await sb.auth.signOut();stopRealtime();token=null;currentUser=null;updateAuthHeader();resetScriptForm();await loadScripts();window.location.hash='#home';routePage();});
-$('#profileBtn')?.addEventListener('click',openProfile);$('#closeProfile')?.addEventListener('click',closeProfile);$('#saveProfile')?.addEventListener('click',saveProfile);$('#profileLogout')?.addEventListener('click',async()=>{closeProfile();await sb.auth.signOut();window.location.hash='#home';});
-$('#chatForm')?.addEventListener('submit',sendChat);$('#loginBtn')?.addEventListener('click',()=>openAuth('login'));$('#registerBtn')?.addEventListener('click',()=>openAuth('register'));$('#startBtn')?.addEventListener('click',()=>openAuth('register'));$('#closeModal')?.addEventListener('click',()=>$('#modal').classList.add('hidden'));$('#switchMode')?.addEventListener('click',()=>openAuth(mode==='login'?'register':'login'));$('#authForm')?.addEventListener('submit',submitAuth);
-$('#browseBtn')?.addEventListener('click',()=>{window.location.hash='#scripts';});$('#chatBtn')?.addEventListener('click',()=>{window.location.hash='#chat';});$('#viewAll')?.addEventListener('click',()=>{window.location.hash='#scripts';});$('#tutorialMenu')?.addEventListener('click',e=>{const b=e.target.closest('.tutorial-btn');if(b)openTutorial(Number(b.dataset.tutorial));});$('#tutorialClose')?.addEventListener('click',closeTutorial);$('#tutorialBack')?.addEventListener('click',closeTutorial);$('#tutorialDetail')?.addEventListener('click',e=>{if(e.target.id==='tutorialDetail')closeTutorial();});window.addEventListener('keydown',e=>{if(e.key==='Escape'){closeTutorial();closeProfile();}});
+$('#languageSelect').addEventListener('change',e=>{localStorage.setItem('cb_lang',e.target.value);applyLanguage();});
+$('#scriptForm').onsubmit=saveScript;
+$('#newScriptBtn').onclick=()=>{resetScriptForm();goTo('create');};
+$('#backToScripts').onclick=()=>goTo('workspace');
+$('#logoutBtn')?.addEventListener('click',logout);
+$('#profileLogoutBtn')?.addEventListener('click',logout);
+$('#profileCreateBtn')?.addEventListener('click',()=>goTo('create'));
+$('#chatForm').onsubmit=sendChat;
+$('#loginBtn').onclick=()=>{closeMenu();openAuth('login');};
+$('#registerBtn').onclick=()=>{closeMenu();openAuth('register');};
+$('#menuLogoutBtn').onclick=()=>{closeMenu();logout();};
+$('#menuToggle').onclick=()=>$('#sideMenu').classList.contains('open')?closeMenu():openMenu();
+$('#menuClose').onclick=closeMenu;
+$('#menuBackdrop').onclick=closeMenu;
+$('#sideMenu').querySelectorAll('[data-menu-route]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();goTo(a.dataset.menuRoute);}));
+$('#startBtn').onclick=()=>goTo('create');
+$('#closeModal').onclick=()=>{$('#modal').classList.add('hidden');pendingRoute=null;};
+$('#switchMode').onclick=()=>openAuth(mode==='login'?'register':'login');
+$('#authForm').onsubmit=submitAuth;
+$('#browseBtn').onclick=()=>goTo('scripts');
+$('#chatBtn').onclick=()=>goTo('chat');
+$('#viewAll').onclick=()=>goTo('scripts');
+$('#tutorialMenu').addEventListener('click',e=>{const b=e.target.closest('.tutorial-btn');if(b)openTutorial(Number(b.dataset.tutorial));});
+document.querySelectorAll('[data-feature-route]').forEach(b=>b.addEventListener('click',()=>goTo(b.dataset.featureRoute)));
+$('#tutorialClose').onclick=closeTutorial;
+$('#tutorialBack').onclick=closeTutorial;
+$('#tutorialDetail').addEventListener('click',e=>{if(e.target.id==='tutorialDetail')closeTutorial();});
+window.addEventListener('keydown',e=>{if(e.key==='Escape'){closeTutorial();closeMenu();}});
 
 function routePage(){
-  const hash=window.location.hash||'#home';const workspace=hash==='#workspace'||hash==='#my-scripts';const chat=hash==='#chat';const home=$('#home'),workspaceView=$('#workspace'),chatView=$('#chatPage');
-  home?.classList.toggle('page-hidden',workspace||chat);workspaceView?.classList.toggle('page-hidden',!workspace);chatView?.classList.toggle('page-hidden',!chat);
-  if(workspace){stopChatPolling();window.scrollTo({top:0,behavior:'smooth'});renderScriptsIfPossible();if(!currentUser)setTimeout(()=>{if(!currentUser&&window.location.hash==='#workspace')openAuth('login');},100);}
-  else if(chat){window.scrollTo({top:0,behavior:'smooth'});if(token){startRealtime();startChatPolling();}else{stopChatPolling();const box=$('#chatMessages');if(box)box.innerHTML=`<div class="empty">${escapeHtml(tr('chatLogin'))}</div>`;}}
-  else{stopChatPolling();if(hash==='#scripts')setTimeout(()=>$('#scripts')?.scrollIntoView({behavior:'smooth'}),0);else window.scrollTo({top:0,behavior:'smooth'});}
+  const hash=window.location.hash || '#home';
+  const workspace=hash==='#workspace' || hash==='#my-scripts';
+  const create=hash==='#create' || hash==='#create-script';
+  const profile=hash==='#profile';
+  const chat=hash==='#chat';
+  const tutorial=hash==='#scripts';
+  const home=document.querySelector('#home');
+  const workspaceView=document.querySelector('#workspace');
+  const createView=document.querySelector('#createPage');
+  const profileView=document.querySelector('#profilePage');
+  const chatView=document.querySelector('#chatPage');
+  if(home) home.classList.toggle('page-hidden',workspace||create||profile||chat);
+  if(workspaceView) workspaceView.classList.toggle('page-hidden',!workspace);
+  if(createView) createView.classList.toggle('page-hidden',!create);
+  if(profileView) profileView.classList.toggle('page-hidden',!profile);
+  if(chatView) chatView.classList.toggle('page-hidden',!chat);
+  if(workspace){ stopChatPolling(); window.scrollTo({top:0,behavior:'smooth'}); renderScriptsIfPossible(); }
+  else if(create){ stopChatPolling(); window.scrollTo({top:0,behavior:'smooth'}); renderScriptsIfPossible(); }
+  else if(profile){ stopChatPolling(); window.scrollTo({top:0,behavior:'smooth'}); loadProfile(); }
+  else if(chat){ window.scrollTo({top:0,behavior:'smooth'}); if(token){startRealtime();startChatPolling();}else{stopChatPolling();} }
+  else { stopChatPolling(); if(tutorial) setTimeout(()=>document.querySelector('#scripts')?.scrollIntoView({behavior:'smooth'}),0); else window.scrollTo({top:0,behavior:'smooth'}); }
 }
 window.addEventListener('hashchange',routePage);
 
-const initialLang=localStorage.getItem('cb_lang')||detectLanguage();if(!localStorage.getItem('cb_lang'))localStorage.setItem('cb_lang',initialLang);applyLanguage();routePage();
+// Automatic language detection runs only when the user has not chosen a language before.
+const initialLang=localStorage.getItem('cb_lang') || detectLanguage();
+if(!localStorage.getItem('cb_lang')) localStorage.setItem('cb_lang',initialLang);
+applyLanguage();
+routePage();
 (async()=>{
-  try{await syncAuth();}catch(e){console.error(e);}
-  applyLanguage();routePage();await loadScripts();if(currentUser)startRealtime();
-  sb.auth.onAuthStateChange(async(_event,session)=>{token=session?.access_token||null;currentUser=session?.user||null;if(currentUser)await loadProfile();else updateAuthHeader();if(currentUser)startRealtime();else stopRealtime();await loadScripts();routePage();});
+  try { await syncAuth(); } catch(e) { console.error(e); }
+  updateMenuAuth();
+  applyLanguage();
+  routePage();
+  await loadScripts();
+  if(currentUser) startRealtime();
+  sb.auth.onAuthStateChange(async (_event, session)=>{
+    token=session?.access_token||null; currentUser=session?.user||null;
+    if(currentUser) startRealtime(); else stopRealtime();
+    await loadScripts(); await loadProfile(); updateMenuAuth();
+    routePage();
+  });
 })();
