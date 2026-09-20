@@ -318,10 +318,23 @@ async function renderScriptsIfPossible(){
     if(error) throw error;
     $('#scriptCount').textContent=String(rows.length);
     if(!rows.length){box.innerHTML=`<div class="empty">${escapeHtml(tr('empty'))}</div>`;return;}
-    box.innerHTML=rows.map(s=>`<article class="card"><div class="card-head"><div class="icon">&lt;/&gt;</div><div><h3>${escapeHtml(s.filename)}</h3><small>${escapeHtml(s.visibility)}</small></div></div><div class="card-foot"><span class="tag">${escapeHtml(s.visibility)}</span><div class="script-actions"><button class="mini-btn" data-edit="${s.id}">${escapeHtml(tr('edit'))}</button><button class="mini-btn danger" data-delete="${s.id}">${escapeHtml(tr('delete'))}</button>${s.visibility==='public'?`<a class="raw" href="https://zpomypkasmmiozandzlv.supabase.co/functions/v1/raw-script?id=${encodeURIComponent(s.id)}" target="_blank" rel="noreferrer">${escapeHtml(tr('raw'))}</a>`:''}</div></div></article>`).join('');
+    box.innerHTML=rows.map(s=>{const raw=s.visibility==='public'?`<a class="raw" href="https://zpomypkasmmiozandzlv.supabase.co/functions/v1/raw-script?id=${encodeURIComponent(s.id)}" target="_blank" rel="noreferrer">${escapeHtml(tr('raw'))}</a><button class="mini-btn" data-copy-raw="${s.id}">${escapeHtml(copyRawLabel())}</button>`:''; return `<article class="card"><div class="card-head"><div class="icon">&lt;/&gt;</div><div><h3>${escapeHtml(s.filename)}</h3><small>${escapeHtml(s.visibility)}</small></div></div><div class="card-foot"><span class="tag">${escapeHtml(s.visibility)}</span><div class="script-actions"><button class="mini-btn" data-edit="${s.id}">${escapeHtml(tr('edit'))}</button><button class="mini-btn danger" data-delete="${s.id}">${escapeHtml(tr('delete'))}</button>${raw}</div></div></article>`;}).join('');
     box.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>editScript(rows.find(x=>String(x.id)===b.dataset.edit)));
     box.querySelectorAll('[data-delete]').forEach(b=>b.onclick=()=>deleteScript(b.dataset.delete));
+    box.querySelectorAll('[data-copy-raw]').forEach(b=>b.onclick=()=>copyRawLink(b.dataset.copyRaw));
   }catch(e){box.innerHTML=`<div class="empty">${escapeHtml(e.message||tr('needLoginWorkspace'))}</div>`;}
+}
+function copyRawLabel(){
+  const l=currentLang();
+  return ({id:'Salin Link Raw',en:'Copy Raw Link',es:'Copiar enlace Raw',pt:'Copiar link Raw',fil:'Kopyahin ang Raw Link',tr:'Raw Bağlantısını Kopyala',fr:'Copier le lien Raw',de:'Raw-Link kopieren',ja:'Rawリンクをコピー',ko:'Raw 링크 복사',zh:'复制 Raw 链接','zh-TW':'複製 Raw 連結',ru:'Копировать Raw-ссылку',hi:'Raw लिंक कॉपी करें',ar:'نسخ رابط Raw',vi:'Sao chép liên kết Raw',th:'คัดลอกลิงก์ Raw',pl:'Kopiuj link Raw',it:'Copia link Raw','pt-PT':'Copiar link Raw'}[l] || 'Copy Raw Link');
+}
+async function copyRawLink(id){
+  const url=`https://zpomypkasmmiozandzlv.supabase.co/functions/v1/raw-script?id=${encodeURIComponent(id)}`;
+  try{
+    if(navigator.clipboard && window.isSecureContext){ await navigator.clipboard.writeText(url); }
+    else { const ta=document.createElement('textarea');ta.value=url;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove(); }
+    toast(currentLang()==='id'?'Link Raw berhasil disalin.':'Raw link copied.');
+  }catch(e){ toast(currentLang()==='id'?'Gagal menyalin link Raw.':'Could not copy Raw link.'); }
 }
 async function loadScripts(){ await renderScriptsIfPossible(); }
 
