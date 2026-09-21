@@ -19,9 +19,19 @@ async function toggleFavorite(id){if(!currentUser){openAuth('login');return;}con
   await renderPublicScripts(); await renderScriptsIfPossible();}
 async function recordScriptView(id){try{await sb.from('script_views').insert({script_id:id,user_id:currentUser?.id||null,visitor_id:ensureVisitorId()});await sb.rpc('increment_script_view',{p_script_id:id});}catch(_){} if(currentUser){try{await sb.from('script_history').upsert({user_id:currentUser.id,script_id:id,last_viewed_at:new Date().toISOString()},{onConflict:'user_id,script_id'});}catch(_){}}}
 async function reportScript(id){if(!currentUser){openAuth('login');return;}const reason=prompt(currentLang()==='id'?'Alasan laporan:':'Report reason:');if(!reason)return;const {error}=await sb.from('script_reports').insert({script_id:id,reporter_id:currentUser.id,reason:reason.slice(0,500)});if(!error)alert(currentLang()==='id'?'Laporan terkirim.':'Report sent.');}
+function isValidAvatar(value){
+  return /^profil[1-5]\.png$/.test(String(value||'').trim());
+}
 function normalizeAvatar(value){
   const v=String(value||'').trim();
-  return /^profil[1-5]\.png$/.test(v) ? v : 'profil1.png';
+  return isValidAvatar(v) ? v : 'profil1.png';
+}
+function resolveAvatar(metadataAvatar, profileAvatar){
+  const m=String(metadataAvatar||'').trim();
+  const p=String(profileAvatar||'').trim();
+  if(isValidAvatar(m)) return m;
+  if(isValidAvatar(p)) return p;
+  return 'profil1.png';
 }
 
 async function fetchPublicProfile(userId){
@@ -32,7 +42,7 @@ async function fetchPublicProfile(userId){
       pr=await sb.from('profiles').select('id,username').eq('id',userId).maybeSingle();
     }
     if(pr.data?.id){
-      const avatar = normalizeAvatar(pr.data.avatar_url);
+      const avatar = resolveAvatar(null, pr.data.avatar_url);
       return {...pr.data, avatar_url:avatar};
     }
   }catch(_){}
@@ -40,7 +50,7 @@ async function fetchPublicProfile(userId){
     return {
       id:userId,
       username:currentUser.user_metadata?.username || currentUser.email?.split('@')[0] || 'User',
-      avatar_url:normalizeAvatar(currentUser.user_metadata?.avatar_url)
+      avatar_url:resolveAvatar(currentUser.user_metadata?.avatar_url, null)
     };
   }
   return null;
@@ -90,7 +100,7 @@ async function renderPublicScripts(){
       const isMine=String(x.user_id)===String(currentUser.id);
       x.profiles={
         username:p.username || (isMine ? (currentUser.user_metadata?.username || currentUser.email?.split('@')[0] || 'User') : 'User'),
-        avatar_url:isMine ? (currentUser.user_metadata?.avatar_url || localStorage.getItem('cb_avatar') || p.avatar_url || 'profil1.png') : (p.avatar_url || 'profil1.png')
+        avatar_url:isMine ? resolveAvatar(currentUser.user_metadata?.avatar_url, p.avatar_url) : resolveAvatar(null, p.avatar_url)
       };
     });
     const rows=cachedPublicScripts.filter(s=>(!q||(s.filename+' '+(s.profiles?.username||'')).toLowerCase().includes(q)));
@@ -159,7 +169,10 @@ async function ensureProfileRecord(){
       existing=await sb.from('profiles').select('id,username').eq('id',currentUser.id).maybeSingle();
     }
     const dbAvatar=String(existing.data?.avatar_url||'').trim();
-    const avatar=/^profil[1-5]\.png$/.test(dbAvatar) ? dbAvatar : normalizeAvatar(currentUser.user_metadata?.avatar_url);
+    const metaAvatar=String(currentUser.user_metadata?.avatar_url||'').trim();
+    // Auth metadata is the canonical choice for the signed-in account.
+    // This prevents an older default 'profil1.png' row from overwriting a user's real selection.
+    const avatar=resolveAvatar(metaAvatar, dbAvatar);
     let result=await sb.from('profiles').upsert({id:currentUser.id,username,avatar_url:avatar},{onConflict:'id'});
     if(result.error && /avatar_url/i.test(result.error.message||'')){
       result=await sb.from('profiles').upsert({id:currentUser.id,username},{onConflict:'id'});
@@ -452,7 +465,7 @@ async function loadProfile(){
     return;
   }
   let username=currentUser.user_metadata?.username || '';
-  let avatar=currentUser.user_metadata?.avatar_url || localStorage.getItem('cb_avatar') || 'profil1.png';
+  let avatar=resolveAvatar(currentUser.user_metadata?.avatar_url, null);
   try{
     const profile=await fetchPublicProfile(currentUser.id);
     if(profile?.username) username=profile.username;
@@ -484,7 +497,7 @@ async function submitAuth(e){
   e.preventDefault();
   const dict=ui[currentLang()]||ui.en; const error=$('#error'); error.textContent=''; error.style.color='';
   const username=$('#username').value.trim(), password=$('#password').value, confirm=$('#confirm').value;
-  if(!/^[A-Za-z0-9_]{5,24}$/.test(username)){error.textContent=currentLang()==='id'?'Username 5–24 karakter, hanya huruf, angka, dan underscore.':'Username must be 5–24 characters using only letters, numbers, and underscore.';return;}
+  if(!/^[A-Za-z0-9_]{5,18}$/.test(username)){error.textContent=currentLang()==='id'?'Username 5–18 karakter, hanya huruf, angka, dan underscore.':'Username must be 5–18 characters using only letters, numbers, and underscore.';return;}
   if(password.length<9){error.textContent=currentLang()==='id'?'Password minimal 9 karakter.':'Password must be at least 9 characters.';return;}
   if(mode==='register' && password!==confirm){error.textContent=currentLang()==='id'?'Konfirmasi password tidak cocok.':'Passwords do not match.';return;}
   const email=username.toLowerCase()+'@cb-scriptstore.local';
@@ -528,7 +541,7 @@ async function renderMyPublicScripts(){
     }
     const myAvatar=await fetchPublicProfile(currentUser.id);
     const myOwner=myAvatar?.username || currentUser.user_metadata?.username || currentUser.email?.split('@')[0] || 'User';
-    const myPhoto=myAvatar?.avatar_url || currentUser.user_metadata?.avatar_url || localStorage.getItem('cb_avatar') || 'profil1.png';
+    const myPhoto=resolveAvatar(currentUser.user_metadata?.avatar_url, myAvatar?.avatar_url);
     box.innerHTML=rows.map(s=>`<article class="public-card" data-select-public="${s.id}"><div class="public-profile"><img class="public-profile-avatar" src="${escapeHtml(myPhoto)}" alt="${escapeHtml(myOwner)}"><div><div class="public-profile-label">${escapeHtml(tr('publicBy'))}</div><div class="public-profile-name">@${escapeHtml(myOwner)}</div></div></div><h3>${escapeHtml(s.filename)}</h3><div class="script-actions"><button class="mini-btn copy-script-btn" data-copy-my-public="${s.id}">${escapeHtml(tr('copyScript'))}</button></div></article>`).join('');
     box.querySelectorAll('[data-copy-my-public]').forEach(b=>b.onclick=async e=>{e.stopPropagation();try{await navigator.clipboard.writeText(rawLoadstring(b.dataset.copyMyPublic));const old=b.textContent;b.textContent=tr('copiedScript')||'Copied';setTimeout(()=>b.textContent=old,1200);}catch(_){}});
   }catch(e){box.innerHTML=`<div class="empty">${escapeHtml(e.message||'Gagal memuat public script kamu.')}</div>`;}
@@ -602,7 +615,6 @@ document.querySelectorAll('.avatar-choice').forEach(b=>b.addEventListener('click
     const {data,error}=await sb.auth.updateUser({data:{...(currentUser.user_metadata||{}),username,avatar_url:avatar}});
     if(error)throw error;
     if(data?.user)currentUser=data.user;
-    localStorage.setItem('cb_avatar',avatar);
     if($('#profileAvatar'))$('#profileAvatar').src=avatar;
     document.querySelectorAll('.avatar-choice').forEach(x=>x.classList.toggle('selected',x===b));
     await loadProfile();

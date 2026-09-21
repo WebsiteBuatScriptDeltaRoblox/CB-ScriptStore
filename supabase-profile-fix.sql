@@ -11,7 +11,7 @@ drop policy if exists "user can update own profile" on public.profiles;
 create policy "user can update own profile" on public.profiles for update to authenticated using (auth.uid()=id) with check (auth.uid()=id);
 
 insert into public.profiles (id, username, avatar_url)
-select u.id, coalesce(nullif(u.raw_user_meta_data->>'username',''), split_part(u.email,'@',1)), 'profil1.png'
+select u.id, coalesce(nullif(u.raw_user_meta_data->>'username',''), split_part(u.email,'@',1)), coalesce(nullif(u.raw_user_meta_data->>'avatar_url',''), 'profil1.png')
 from auth.users u
 where not exists (select 1 from public.profiles p where p.id=u.id);
 
@@ -34,7 +34,12 @@ create trigger on_auth_user_created after insert on auth.users for each row exec
 
 -- Sync valid avatar selections that were already saved in Auth metadata.
 update public.profiles p
-set avatar_url = u.raw_user_meta_data->>'avatar_url'
+set avatar_url = coalesce(nullif(u.raw_user_meta_data->>'avatar_url',''), p.avatar_url, 'profil1.png')
 from auth.users u
 where p.id = u.id
   and (u.raw_user_meta_data->>'avatar_url') ~ '^profil[1-5]\\.png$';
+
+-- Normalize invalid/missing avatars without overwriting valid per-account selections.
+update public.profiles
+set avatar_url = 'profil1.png'
+where avatar_url is null or btrim(avatar_url) = '' or avatar_url !~ '^profil[1-5]\.png$';
