@@ -42,12 +42,10 @@ profile-script-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));g
 .admin-head h2{margin:0}.admin-head p{opacity:.7;margin:5px 0 16px}.admin-section{margin-top:18px}.admin-search{width:100%;box-sizing:border-box;margin:0 0 10px;padding:11px 13px;border-radius:12px;border:1px solid rgba(45,157,255,.35);background:rgba(3,12,25,.72);color:#dff4ff;outline:none}.admin-search:focus{border-color:rgba(45,157,255,.8);box-shadow:0 0 0 2px rgba(45,157,255,.12)}.admin-section h3{margin-bottom:10px}.admin-users{display:grid;gap:9px}.admin-user{display:flex;align-items:center;gap:9px;padding:10px;border:1px solid rgba(80,130,180,.2);border-radius:12px;background:rgba(10,24,42,.65)}.admin-user img{width:38px;height:38px;border-radius:50%;object-fit:cover}.admin-user-main{flex:1;min-width:0}.admin-user-main b,.admin-user-main div{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.admin-none{opacity:.5;font-size:.8rem}.admin-user .mini-btn{white-space:nowrap}.admin-user-card{align-items:flex-start}.admin-profile-button{margin-top:7px;width:100%}.admin-avatar-modal{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(0,7,20,.78);backdrop-filter:blur(5px)}.admin-avatar-modal.hidden{display:none}.admin-avatar-modal-box{width:min(94vw,430px);max-height:82vh;overflow:hidden;border:1px solid rgba(45,157,255,.55);border-radius:18px;background:linear-gradient(180deg,#071b35,#031022);box-shadow:0 18px 60px rgba(0,0,0,.55);padding:16px}.admin-avatar-modal-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}.admin-avatar-modal-head h3{margin:0;font-size:1.05rem}.admin-avatar-modal-close{border:1px solid rgba(45,157,255,.45);background:transparent;color:#dff4ff;border-radius:9px;padding:7px 10px;cursor:pointer}.admin-avatar-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;max-height:58vh;overflow-y:auto;padding:4px 3px 8px}.admin-avatar-choice{position:relative;width:100%;aspect-ratio:1;padding:3px;border-radius:50%;border:1px solid rgba(45,157,255,.3);background:rgba(2,13,28,.7);cursor:pointer}.admin-avatar-choice img{width:100%!important;height:100%!important;border-radius:50%;object-fit:cover}.admin-avatar-choice span{position:absolute;right:-2px;bottom:-2px;min-width:18px;height:18px;padding:0 4px;border-radius:10px;background:#071b36;color:#dff4ff;border:1px solid rgba(45,157,255,.6);font-size:10px;line-height:17px;text-align:center}.admin-avatar-choice.selected{border-color:#28a8ff;box-shadow:0 0 0 2px rgba(40,168,255,.25),0 0 14px rgba(40,168,255,.18)}
 @media(max-width:600px){.admin-user{flex-wrap:wrap}.admin-user-main{min-width:calc(100% - 50px)}.admin-user .mini-btn{flex:1}}
 </style>
-
 <style id="cb-admin-avatar-style">
 .admin-user .cb-verified{flex:0 0 auto}.admin-user .cb-user-badge{flex:0 0 auto}
 .public-profile-name .cb-verified{margin-left:5px}.public-profile-name .cb-user-badge{margin-left:4px}
 </style>
-
 <style id="cb-admin-avatar-final-fix">
 /* Compact avatar picker: no page stretching, no horizontal scroll. */
 #adminAvatarModal{position:fixed!important;inset:0!important;z-index:2147483000!important;display:flex!important;align-items:center!important;justify-content:center!important;padding:14px!important;box-sizing:border-box!important;background:rgba(0,7,20,.82)!important;backdrop-filter:blur(6px)!important}
@@ -57,27 +55,6 @@ profile-script-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));g
 #adminAvatarModal .admin-avatar-choice{width:100%!important;aspect-ratio:1!important;min-width:0!important;height:auto!important}
 #adminAvatarModal .admin-avatar-choice img{display:block!important;width:100%!important;height:100%!important;aspect-ratio:1!important}
 @media(max-width:420px){#adminAvatarModal{padding:10px!important}#adminAvatarModal .admin-avatar-modal-box{width:min(94vw,360px)!important;padding:12px!important}#adminAvatarModal .admin-avatar-grid{gap:6px!important}#adminAvatarModal .admin-avatar-choice span{min-width:16px;height:16px;line-height:15px;font-size:9px}}
-</style>
-
-<style id="cb-local-ux-enhancements">
-.cb-toast-stack{position:fixed;right:14px;bottom:18px;z-index:2147483001;display:flex;flex-direction:column;gap:8px;pointer-events:none}.cb-toast{padding:10px 14px;border:1px solid rgba(55,180,255,.45);border-radius:12px;background:rgba(4,18,38,.94);color:#e8f8ff;box-shadow:0 10px 30px rgba(0,0,0,.35);transform:translateY(12px);opacity:0;transition:.22s ease;font-size:.88rem}.cb-toast.show{transform:none;opacity:1}.cb-toast.ok{border-color:rgba(40,220,170,.55)}
-.cb-back-top{position:fixed;right:14px;bottom:74px;width:42px;height:42px;border-radius:50%;border:1px solid rgba(45,157,255,.55);background:rgba(4,18,38,.9);color:#dff4ff;font-size:20px;z-index:1200;opacity:0;pointer-events:none;transform:translateY(10px);transition:.2s}.cb-back-top.show{opacity:1;pointer-events:auto;transform:none}.cb-page-enter{animation:cbPageIn .28s ease both}@keyframes cbPageIn{from{opacity:.35;transform:translateY(8px)}to{opacity:1;transform:none}}
-.cb-press{animation:cbPress .18s ease}@keyframes cbPress{50%{transform:scale(.96)}}
-.cb-admin-filter-row{display:flex;gap:8px;margin:0 0 10px}.admin-filter{flex:1;min-width:0;padding:10px 11px;border-radius:11px;border:1px solid rgba(45,157,255,.3);background:rgba(3,12,25,.72);color:#dff4ff;outline:none}.cb-quick-badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}.cb-quick-badge{width:31px;height:31px;border-radius:9px;border:1px solid rgba(45,157,255,.32);background:rgba(2,13,28,.75);cursor:pointer;font-size:16px}.cb-quick-badge:hover{border-color:#28a8ff;transform:translateY(-1px)}
-@media(max-width:600px){.cb-admin-filter-row{flex-direction:column}.admin-filter{width:100%}.cb-toast-stack{left:12px;right:12px;bottom:14px}.cb-toast{text-align:center}.cb-back-top{bottom:66px}}
-</style>
-
-<style id="cb-performance-menu-fix">
-/* Mobile performance + menu touch fix */
-html,body{max-width:100%;overflow-x:hidden}
-body{touch-action:pan-y;-webkit-overflow-scrolling:touch}
-.side-menu{will-change:transform;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;overscroll-behavior:contain;touch-action:pan-y}
-.menu-backdrop{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;touch-action:none;background:rgba(0,7,20,.58)!important}
-.menu-backdrop.hidden{display:none!important}
-.menu-toggle,.menu-close,.side-nav a,.side-auth button{touch-action:manipulation}
-.cb-page-enter{animation:none!important}
-.cb-press{animation:none!important}
-@media (prefers-reduced-motion: reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 </style>
 </head>
 <body>
@@ -154,6 +131,7 @@ body{touch-action:pan-y;-webkit-overflow-scrolling:touch}
     </form>
   </section>
 
+
   <section class="profile-page page-view page-hidden" id="adminPage">
     <div id="adminPanel"></div>
   </section>
@@ -164,7 +142,6 @@ body{touch-action:pan-y;-webkit-overflow-scrolling:touch}
       <div class="profile-info"><span class="profile-label" data-i18n="profile">Profil</span><h2 id="profileUsername">Guest</h2><p id="profileEmail">Login untuk melihat profil.</p></div>
       <div class="profile-actions"><button class="btn primary" id="profileCreateBtn" data-i18n="createScript">Buat Script</button><button class="btn ghost" id="profileLogoutBtn" data-i18n="logout">Logout</button></div>
       <div class="profile-notifications"><h3>🔔 <span data-i18n="notificationsTitle">Notifikasi</span></h3><div id="notificationsList" class="notification-list"></div></div>
-      
     </div>
   </section>
 
@@ -198,5 +175,5 @@ body{touch-action:pan-y;-webkit-overflow-scrolling:touch}
   <div class="modal hidden" id="tutorialDetail"><div class="modal-box tutorial-detail-box"><button class="close" id="tutorialClose">×</button><div class="tutorial-detail-icon">📚</div><h2 id="tutorialDetailTitle"></h2><p id="tutorialDetailDesc"></p><div class="detail-block"><h3>🎯 <span data-i18n="why">Kegunaan</span></h3><p id="tutorialWhy"></p></div><div class="detail-block"><h3>📖 <span data-i18n="what">Yang dipelajari</span></h3><p id="tutorialWhat"></p></div><div class="detail-block"><h3>💻 <span data-i18n="example">Contoh kode</span></h3><pre id="tutorialCode"></pre></div><div class="detail-block"><h3>🧠 <span data-i18n="explain">Penjelasan</span></h3><p id="tutorialExplain"></p></div><div class="detail-block"><h3>🛠️ <span data-i18n="practice">Latihan</span></h3><p id="tutorialPractice" data-i18n="practiceText"></p></div><button class="btn ghost full" id="tutorialBack" data-i18n="back">Kembali ke Tutorial</button></div></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
-  <script src="app.js?v=20260921-profile25-button-fix2"></script>
+  <script src="app.js"></script>
 </body></html>

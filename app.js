@@ -20,8 +20,7 @@ async function toggleFavorite(id){if(!currentUser){openAuth('login');return;}con
 async function recordScriptView(id){try{await sb.from('script_views').insert({script_id:id,user_id:currentUser?.id||null,visitor_id:ensureVisitorId()});await sb.rpc('increment_script_view',{p_script_id:id});}catch(_){} if(currentUser){try{await sb.from('script_history').upsert({user_id:currentUser.id,script_id:id,last_viewed_at:new Date().toISOString()},{onConflict:'user_id,script_id'});}catch(_){}}}
 async function reportScript(id){if(!currentUser){openAuth('login');return;}const reason=prompt(currentLang()==='id'?'Alasan laporan:':'Report reason:');if(!reason)return;const {error}=await sb.from('script_reports').insert({script_id:id,reporter_id:currentUser.id,reason:reason.slice(0,500)});if(!error)alert(currentLang()==='id'?'Laporan terkirim.':'Report sent.');}
 function isValidAvatar(value){
-  const v=String(value||'').trim();
-  return /^profil(?:[1-9]|1[0-9]|2[0-5])\.png$/.test(v);
+  return /^profil(?:[1-9]|1[0-9]|2[0-5])\.png$/.test(String(value||'').trim());
 }
 function normalizeAvatar(value){
   const v=String(value||'').trim();
@@ -30,15 +29,15 @@ function normalizeAvatar(value){
 function resolveAvatar(metadataAvatar, profileAvatar){
   const m=String(metadataAvatar||'').trim();
   const p=String(profileAvatar||'').trim();
-  if(isValidAvatar(p)) return p;
   if(isValidAvatar(m)) return m;
+  if(isValidAvatar(p)) return p;
   return 'profil1.png';
 }
 
 async function fetchPublicProfile(userId){
   try{
     // avatar_url may not exist yet on older Supabase schemas; fall back gracefully.
-    let pr=await sb.from('profiles').select('id,username,avatar_url,verified,user_badge').eq('id',userId).maybeSingle();
+    let pr=await sb.from('profiles').select('id,username,avatar_url').eq('id',userId).maybeSingle();
     if(pr.error && /avatar_url/i.test(pr.error.message||'')){
       pr=await sb.from('profiles').select('id,username').eq('id',userId).maybeSingle();
     }
@@ -68,7 +67,7 @@ async function openPublicProfile(userId){
   if(!profile){scripts.innerHTML=`<div class="empty">${escapeHtml(tr('profileNotFound')||'Profile not found.')}</div>`;return;}
   const owner=profile.username||'User';
   avatar.src=profile.avatar_url||'profil1.png';
-  name.innerHTML='@'+escapeHtml(owner)+' '+ownerBadgeHtml(profile);
+  name.textContent='@'+owner;
   const rows=await sb.from('scripts').select('id,filename').eq('user_id',userId).eq('visibility','public').order('updated_at',{ascending:false}).limit(50);
   const list=rows.data||[];
   scripts.innerHTML=list.length?list.map(s=>`<article class="profile-script-card"><h4>${escapeHtml(s.filename)}</h4><button class="mini-btn copy-script-btn" data-profile-copy="${s.id}">${escapeHtml(tr('copyScript'))}</button></article>`).join(''):`<div class="empty">${escapeHtml(tr('emptyPublicScripts'))}</div>`;
@@ -179,6 +178,7 @@ async function adminSetProfile(id,field,value){
   }catch(e){const er=$('#adminError');if(er)er.textContent=e.message||'Gagal memperbarui akun.';}
 }
 
+
 async function renderPublicScripts(){
   const box=$('#publicCards'); if(!box)return;
   try{
@@ -193,37 +193,27 @@ async function renderPublicScripts(){
     const ids=[...new Set(cachedPublicScripts.map(x=>x.user_id).filter(Boolean))];
     let profiles=[];
     if(ids.length){
-      let pr=await sb.from('profiles').select('id,username,avatar_url,verified,user_badge').in('id',ids);
+      let pr=await sb.from('profiles').select('id,username,avatar_url').in('id',ids);
       if(pr.error && /avatar_url/i.test(pr.error.message||'')){
-        pr=await sb.from('profiles').select('id,username,verified,user_badge').in('id',ids);
+        pr=await sb.from('profiles').select('id,username').in('id',ids);
       }
       profiles=pr.data||[];
     }
     const pm=new Map(profiles.map(x=>[x.id,x]));
-    await Promise.all(ids.map(async id=>{
-      let p=pm.get(id);
-      // Always make a direct profile read for badge state. This avoids a stale/partial
-      // profile object preventing the verified badge from appearing in Public Script.
-      const fp=await fetchPublicProfile(id);
-      if(fp) p={...(p||{}),...fp};
-      pm.set(id,p||{});
-    }));
+    await Promise.all(ids.map(async id=>{const p=pm.get(id);if(!p?.username){const fp=await fetchPublicProfile(id);if(fp)pm.set(id,fp);}}));
     cachedPublicScripts.forEach(x=>{
       const p=pm.get(x.user_id)||{};
       const isMine=String(x.user_id)===String(currentUser.id);
       x.profiles={
-        id:p.id || x.user_id,
         username:p.username || (isMine ? (currentUser.user_metadata?.username || currentUser.email?.split('@')[0] || 'User') : 'User'),
-        avatar_url:isMine ? resolveAvatar(currentUser.user_metadata?.avatar_url, p.avatar_url) : resolveAvatar(null, p.avatar_url),
-        verified:p.verified === true,
-        user_badge:p.user_badge || null
+        avatar_url:isMine ? resolveAvatar(currentUser.user_metadata?.avatar_url, p.avatar_url) : resolveAvatar(null, p.avatar_url)
       };
     });
     const rows=cachedPublicScripts.filter(s=>(!q||(s.filename+' '+(s.profiles?.username||'')).toLowerCase().includes(q)));
     if(!rows.length){box.innerHTML=`<div class="empty">${escapeHtml(tr('emptyPublicScripts')||'Belum ada script publik.')}</div>`;return;}
     box.innerHTML=rows.map(s=>{
       const owner=s.profiles?.username||'User',avatar=s.profiles?.avatar_url||'profil1.png',fav=favoriteIds.has(String(s.id)),ownerId=s.user_id;
-      return `<article class="public-card"><div class="public-profile" data-public-profile="${escapeHtml(ownerId)}"><img class="public-profile-avatar" src="${escapeHtml(avatar)}" alt="${escapeHtml(owner)}"><div><div class="public-profile-label">${escapeHtml(tr('publicBy'))}</div><div class="public-profile-name">@${escapeHtml(owner)} ${ownerBadgeHtml(s.profiles)}</div></div></div><h3>${escapeHtml(s.filename)}</h3><div class="script-actions"><button class="mini-btn copy-script-btn" data-copy-public="${s.id}">${escapeHtml(tr('copyScript'))}</button><button class="mini-btn ${fav?'active':''}" data-fav="${s.id}">${fav?'★':'☆'}</button><button class="mini-btn" data-report="${s.id}">⚑</button></div></article>`;
+      return `<article class="public-card"><div class="public-profile" data-public-profile="${escapeHtml(ownerId)}"><img class="public-profile-avatar" src="${escapeHtml(avatar)}" alt="${escapeHtml(owner)}"><div><div class="public-profile-label">${escapeHtml(tr('publicBy'))}</div><div class="public-profile-name">@${escapeHtml(owner)}</div></div></div><h3>${escapeHtml(s.filename)}</h3><div class="script-actions"><button class="mini-btn copy-script-btn" data-copy-public="${s.id}">${escapeHtml(tr('copyScript'))}</button><button class="mini-btn ${fav?'active':''}" data-fav="${s.id}">${fav?'★':'☆'}</button><button class="mini-btn" data-report="${s.id}">⚑</button></div></article>`;
     }).join('');
     box.querySelectorAll('[data-public-profile]').forEach(b=>{b.setAttribute('role','button');b.setAttribute('tabindex','0');b.onclick=()=>openPublicProfile(b.dataset.publicProfile);b.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openPublicProfile(b.dataset.publicProfile);}};});
     box.querySelectorAll('[data-fav]').forEach(b=>b.onclick=()=>toggleFavorite(b.dataset.fav));
@@ -280,7 +270,7 @@ async function ensureProfileRecord(){
   try{
     // Supabase profile is the account's source of truth. Never copy another
     // account's browser localStorage avatar into this account.
-    let existing=await sb.from('profiles').select('id,username,avatar_url,verified,user_badge').eq('id',currentUser.id).maybeSingle();
+    let existing=await sb.from('profiles').select('id,username,avatar_url').eq('id',currentUser.id).maybeSingle();
     if(existing.error && /avatar_url/i.test(existing.error.message||'')){
       existing=await sb.from('profiles').select('id,username').eq('id',currentUser.id).maybeSingle();
     }
@@ -598,14 +588,15 @@ async function loadProfile(){
   document.querySelectorAll('.avatar-choice').forEach(btn=>btn.classList.toggle('selected',btn.dataset.avatar===avatar));
 }
 
-function closeMenu(){const menu=$('#sideMenu'),back=$('#menuBackdrop'),toggle=$('#menuToggle');if(menu)menu.classList.remove('open');if(back)back.classList.add('hidden');if(toggle){toggle.setAttribute('aria-expanded','false');toggle.classList.remove('active');}if(menu)menu.setAttribute('aria-hidden','true');document.body.classList.remove('menu-open');document.documentElement.classList.remove('menu-open');document.body.style.removeProperty('overflow');document.body.style.removeProperty('position');document.body.style.removeProperty('touch-action');}
-function openMenu(){const menu=$('#sideMenu'),back=$('#menuBackdrop'),toggle=$('#menuToggle');if(menu)menu.classList.add('open');if(back)back.classList.remove('hidden');if(toggle){toggle.setAttribute('aria-expanded','true');toggle.classList.add('active');}if(menu)menu.setAttribute('aria-hidden','false');document.body.classList.add('menu-open');document.documentElement.classList.add('menu-open');document.body.style.removeProperty('overflow');document.body.style.removeProperty('position');document.body.style.touchAction='pan-y';loadProfile();}
+function closeMenu(){const menu=$('#sideMenu'),back=$('#menuBackdrop'),toggle=$('#menuToggle');if(menu)menu.classList.remove('open');if(back)back.classList.add('hidden');if(toggle){toggle.setAttribute('aria-expanded','false');toggle.classList.remove('active');}if(menu)menu.setAttribute('aria-hidden','true');}
+function openMenu(){const menu=$('#sideMenu'),back=$('#menuBackdrop'),toggle=$('#menuToggle');if(menu)menu.classList.add('open');if(back)back.classList.remove('hidden');if(toggle){toggle.setAttribute('aria-expanded','true');toggle.classList.add('active');}if(menu)menu.setAttribute('aria-hidden','false');loadProfile();}
 async function goTo(route){
   closeMenu();
   if(route==='stats'){ window.location.hash='#stats'; return; }
   if(route==='create'||route==='workspace'||route==='profile'||route==='explore'||route==='admin'){
     await syncAuth();
     if(!currentUser){ pendingRoute=route; openAuth('login'); return; }
+    if(route==='admin' && !(await isAdmin())) return;
   }
   window.location.hash=route==='home'?'#home':'#'+route;
   routePage();
@@ -675,10 +666,9 @@ async function loadScripts(){ await renderScriptsIfPossible(); }
 async function saveScript(e){
   e.preventDefault(); const err=$('#scriptError');err.textContent=''; await syncAuth();
   if(!token){err.textContent=tr('needLoginWorkspace');return;}
-  const id=$('#scriptId').value, originalFilename=$('#scriptFilename').value.trim(), filename=sanitizeScriptFilename(originalFilename), code=$('#scriptCode').value, visibility=id?$('#scriptVisibility').value:'private';
-  if(originalFilename.length<1 || originalFilename.length>120){err.textContent='Invalid filename.';return;}
+  const id=$('#scriptId').value, filename=$('#scriptFilename').value.trim(), code=$('#scriptCode').value, visibility=id?$('#scriptVisibility').value:'private';
+  if(filename.length<1 || filename.length>120){err.textContent='Invalid filename.';return;}
   if(code.length>500000){err.textContent='Script terlalu panjang.';return;}
-  if(filename!==originalFilename){err.style.color='#ffd166';err.textContent=currentLang()==='id'?"Nama script mengandung kata yang tidak pantas dan diubah menjadi 'the Sensor'.":"The script name contained an inappropriate word and was changed to 'the Sensor'.";}
   try{
     if(!id){ const {count,error:e1}=await sb.from('scripts').select('id',{count:'exact',head:true}).eq('user_id',currentUser.id); if(e1)throw e1; if((count||0)>=50){err.textContent=currentLang()==='id'?'Maksimal 50 script per akun.':'Maximum 50 scripts per account.';return;} }
     let result;
@@ -719,36 +709,36 @@ $('#backToScripts').onclick=()=>goTo('workspace');
 $('#logoutBtn')?.addEventListener('click',logout);
 $('#profileLogoutBtn')?.addEventListener('click',logout);
 $('#profileCreateBtn')?.addEventListener('click',()=>goTo('create'));
-// Restore the built-in profil1.png..profil5.png picker. The selected avatar is stored
-// on the signed-in account, so Public Script cards use the same avatar everywhere.
 document.querySelectorAll('.avatar-choice').forEach(b=>b.addEventListener('click',async()=>{
   await syncAuth();
   if(!currentUser){openAuth('login');return;}
   const avatar=normalizeAvatar(b.dataset.avatar);
   try{
     const username=(currentUser.user_metadata?.username||currentUser.email?.split('@')[0]||'User').trim();
-    const meta={...(currentUser.user_metadata||{}),username,avatar_url:avatar};
-    const updated=await sb.auth.updateUser({data:meta});
-    if(updated.error)throw updated.error;
-    currentUser=updated.data?.user||currentUser;
-    const pr=await sb.from('profiles').upsert({id:currentUser.id,username,avatar_url:avatar},{onConflict:'id'});
+    // Save to the account row first so every device sees the same avatar.
+    // Always save the selected avatar to the authenticated user's metadata first.
+    // This works even before the profiles.avatar_url column has been added.
+    const {data,error}=await sb.auth.updateUser({data:{...(currentUser.user_metadata||{}),username,avatar_url:avatar}});
+    if(error)throw error;
+    // Also mirror it to profiles when the column exists. If the column is missing,
+    // do not break the profile picker; the SQL below can be run to enable per-user
+    // avatars for public cards on every device.
+    let pr=await sb.from('profiles').upsert({id:currentUser.id,username,avatar_url:avatar},{onConflict:'id'});
     if(pr.error && !/avatar_url/i.test(pr.error.message||'')) throw pr.error;
+    if(data?.user)currentUser=data.user;
     if($('#profileAvatar'))$('#profileAvatar').src=avatar;
-    document.querySelectorAll('.avatar-choice').forEach(x=>x.classList.toggle('selected',x.dataset.avatar===avatar));
+    document.querySelectorAll('.avatar-choice').forEach(x=>x.classList.toggle('selected',x===b));
     await loadProfile();
     await renderPublicScripts();
-  }catch(e){alert(e.message||'Gagal menyimpan foto profil.');}
+    await renderMyPublicScripts();
+  }catch(e){console.error(e);alert(e.message||'Gagal menyimpan foto profil.');}
 }));
-
 $('#loginBtn').onclick=()=>{closeMenu();openAuth('login');};
 $('#registerBtn').onclick=()=>{closeMenu();openAuth('register');};
 $('#menuLogoutBtn').onclick=()=>{closeMenu();logout();};
 $('#menuToggle').onclick=()=>$('#sideMenu').classList.contains('open')?closeMenu():openMenu();
 $('#menuClose').onclick=closeMenu;
 $('#menuBackdrop').onclick=closeMenu;
-window.addEventListener('pageshow',closeMenu,{passive:true});
-window.addEventListener('orientationchange',()=>{closeMenu();requestAnimationFrame(()=>window.scrollTo({top:window.scrollY,left:0,behavior:'auto'}));},{passive:true});
-window.addEventListener('resize',()=>{if(window.innerWidth>900)closeMenu();},{passive:true});
 $('#sideMenu').querySelectorAll('[data-menu-route]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();goTo(a.dataset.menuRoute);}));
 $('#startBtn').onclick=()=>goTo('create');
 $('#myScriptsHomeBtn').onclick=async()=>{ await goTo('workspace'); };
@@ -771,9 +761,9 @@ function routePage(){
   const explore=hash==='#explore';
   const create=hash==='#create' || hash==='#create-script';
   const profile=hash==='#profile';
+  const admin=hash==='#admin';
   const tutorial=hash==='#scripts';
   const stats=hash==='#stats';
-  const admin=hash==='#admin';
   const home=document.querySelector('#home');
   const exploreView=document.querySelector('#explorePage');
   const workspaceView=document.querySelector('#workspace');
@@ -791,7 +781,7 @@ function routePage(){
   else if(workspace){ window.scrollTo({top:0,behavior:'smooth'}); renderScriptsIfPossible(); }
   else if(create){ window.scrollTo({top:0,behavior:'smooth'}); renderScriptsIfPossible(); }
   else if(profile){ window.scrollTo({top:0,behavior:'smooth'}); loadProfile(); }
-  else if(admin){ window.scrollTo({top:0,behavior:'smooth'}); syncAuth().then(async()=>{if(await isAdmin()) loadAdminPanel(); else window.location.hash='#home';}); }
+  else if(admin){ window.scrollTo({top:0,behavior:'auto'}); loadAdminPanel(); }
   else { if(tutorial) setTimeout(()=>document.querySelector('#scripts')?.scrollIntoView({behavior:'smooth'}),0); else window.scrollTo({top:0,behavior:'smooth'}); }
 }
 window.addEventListener('hashchange',routePage);
@@ -804,7 +794,7 @@ loadStats();
 routePage();
 (async()=>{
   try { await syncAuth(); } catch(e) { console.error(e); }
-  updateMenuAuth();
+  await updateMenuAuth();
   applyLanguage();
   routePage();
   await loadScripts();
@@ -813,87 +803,7 @@ routePage();
   sb.auth.onAuthStateChange(async (_event, session)=>{
     token=session?.access_token||null; currentUser=session?.user||null;
     if(currentUser) startRealtime(); else stopRealtime();
-    await loadScripts(); await loadProfile(); updateMenuAuth(); await loadAdminPanel();
+    await loadScripts(); await loadProfile(); await updateMenuAuth();
     routePage();
   });
-})();
-
-/* CB ScriptStore local UX enhancements — no new Supabase tables/SQL required. */
-(function(){
-  const q=s=>document.querySelector(s);
-  const qa=s=>Array.from(document.querySelectorAll(s));
-  function toast(message,type='info'){
-    let box=q('#cbToast');
-    if(!box){box=document.createElement('div');box.id='cbToast';box.className='cb-toast-stack';document.body.appendChild(box);}
-    const el=document.createElement('div');el.className='cb-toast '+type;el.textContent=message;box.appendChild(el);
-    requestAnimationFrame(()=>el.classList.add('show'));
-    setTimeout(()=>{el.classList.remove('show');setTimeout(()=>el.remove(),250);},1800);
-  }
-  function addBackTop(){
-    if(q('#cbBackTop'))return;
-    const b=document.createElement('button');b.id='cbBackTop';b.className='cb-back-top';b.textContent='↑';b.title='Kembali ke atas';
-    b.onclick=()=>window.scrollTo({top:0,behavior:'smooth'});document.body.appendChild(b);
-    const sync=()=>b.classList.toggle('show',window.scrollY>420);window.addEventListener('scroll',sync,{passive:true});sync();
-  }
-  function animatePage(){
-    const active=document.querySelector('.page-view:not(.page-hidden), main#home:not(.page-hidden)');
-    if(active){active.classList.remove('cb-page-enter');void active.offsetWidth;active.classList.add('cb-page-enter');}
-  }
-  function enhanceAdmin(){
-    const panel=q('#adminPanel'), users=q('#adminUsers'), scripts=q('#adminPublicScripts');
-    if(!panel||!users||!scripts)return;
-    const userSection=users.closest('.admin-section'), scriptSection=scripts.closest('.admin-section');
-    if(userSection && !q('#cbAdminUserFilter')){
-      const row=document.createElement('div');row.className='cb-admin-filter-row';row.id='cbAdminUserFilter';
-      row.innerHTML='<select id="cbUserFilter" class="admin-filter"><option value="all">Semua akun</option><option value="verified">Centang biru</option><option value="badge">Punya badge</option><option value="plain">Tanpa badge</option></select><select id="cbUserSort" class="admin-filter"><option value="az">A–Z</option><option value="za">Z–A</option></select>';
-      const search=userSection.querySelector('#adminUserSearch');search?.insertAdjacentElement('afterend',row);
-      row.querySelector('#cbUserFilter').onchange=filterAdminUsers;row.querySelector('#cbUserSort').onchange=filterAdminUsers;
-    }
-    if(scriptSection && !q('#cbAdminScriptFilter')){
-      const row=document.createElement('div');row.className='cb-admin-filter-row';row.id='cbAdminScriptFilter';
-      row.innerHTML='<select id="cbScriptSort" class="admin-filter"><option value="new">Terbaru</option><option value="old">Terlama</option><option value="az">Nama A–Z</option><option value="za">Nama Z–A</option></select>';
-      const search=scriptSection.querySelector('#adminScriptSearch');search?.insertAdjacentElement('afterend',row);
-      row.querySelector('#cbScriptSort').onchange=sortAdminScripts;
-    }
-    addQuickBadges(users);
-    filterAdminUsers();sortAdminScripts();
-  }
-  function addQuickBadges(users){
-    users.querySelectorAll('.admin-user').forEach(card=>{
-      if(card.querySelector('.cb-quick-badges'))return;
-      const main=card.querySelector('.admin-user-main');if(!main)return;
-      const btn=card.querySelector('[data-admin-emoji]');if(!btn)return;
-      const id=btn.dataset.adminEmoji;
-      const wrap=document.createElement('div');wrap.className='cb-quick-badges';
-      ['👑','⭐','🛡️','🎮','💎','🔥'].forEach(icon=>{const b=document.createElement('button');b.type='button';b.className='cb-quick-badge';b.textContent=icon;b.title='Pakai '+icon;b.onclick=async()=>{if(typeof adminSetProfile==='function'){await adminSetProfile(id,'user_badge',icon);toast('Badge '+icon+' berhasil dipasang','ok');}};wrap.appendChild(b);});
-      main.appendChild(wrap);
-    });
-  }
-  function filterAdminUsers(){
-    const users=q('#adminUsers');if(!users)return;
-    const mode=q('#cbUserFilter')?.value||'all',sort=q('#cbUserSort')?.value||'az';
-    const cards=qa('#adminUsers .admin-user');
-    cards.sort((a,b)=>{const A=(a.querySelector('.admin-user-main b')?.textContent||'').toLowerCase(),B=(b.querySelector('.admin-user-main b')?.textContent||'').toLowerCase();return sort==='za'?B.localeCompare(A):A.localeCompare(B);}).forEach(c=>users.appendChild(c));
-    cards.forEach(c=>{const txt=c.textContent||'';const verified=!!c.querySelector('.cb-verified'),badge=!!c.querySelector('.cb-user-badge');let show=true;if(mode==='verified')show=verified;if(mode==='badge')show=badge;if(mode==='plain')show=!badge&&!verified;c.style.display=show?'':'none';});
-  }
-  function sortAdminScripts(){
-    const box=q('#adminPublicScripts');if(!box)return;const mode=q('#cbScriptSort')?.value||'new';
-    qa('#adminPublicScripts .admin-user').sort((a,b)=>{const A=(a.querySelector('.admin-user-main b')?.textContent||'').toLowerCase(),B=(b.querySelector('.admin-user-main b')?.textContent||'').toLowerCase();return mode==='za'?B.localeCompare(A):mode==='az'?A.localeCompare(B):mode==='old'?0:0;}).forEach(c=>box.appendChild(c));
-  }
-  // Wrap admin panel refresh so local filters/preset controls return after every server update.
-  if(typeof window.loadAdminPanel==='function' && !window.loadAdminPanel.__cbEnhanced){
-    const original=window.loadAdminPanel;const wrapped=async function(){const r=await original.apply(this,arguments);setTimeout(enhanceAdmin,0);return r;};wrapped.__cbEnhanced=true;window.loadAdminPanel=wrapped;
-  }
-  document.addEventListener('click',e=>{
-    const b=e.target.closest('[data-copy],[data-profile-copy],[data-fav],[data-admin-delete-script]');
-    if(!b)return;
-    if(b.matches('[data-admin-delete-script]'))return;
-    setTimeout(()=>toast(b.matches('[data-fav]')?'Favorit diperbarui':'Tersalin ke clipboard','ok'),80);
-  },true);
-  document.addEventListener('click',e=>{if(e.target.closest('.btn,.mini-btn')){const el=e.target.closest('.btn,.mini-btn');el.classList.remove('cb-press');void el.offsetWidth;el.classList.add('cb-press');}});
-  window.addEventListener('hashchange',()=>setTimeout(animatePage,30));
-  addBackTop();
-  setTimeout(()=>{enhanceAdmin();animatePage();},600);
-  const obs=new MutationObserver(()=>{if(q('#adminPanel'))enhanceAdmin();});
-  obs.observe(document.body,{childList:true,subtree:true});
 })();
