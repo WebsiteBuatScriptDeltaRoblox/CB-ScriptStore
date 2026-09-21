@@ -37,7 +37,7 @@ function resolveAvatar(metadataAvatar, profileAvatar){
 async function fetchPublicProfile(userId){
   try{
     // avatar_url may not exist yet on older Supabase schemas; fall back gracefully.
-    let pr=await sb.from('profiles').select('id,username,avatar_url,verified_blue,badge_emoji').eq('id',userId).maybeSingle();
+    let pr=await sb.from('profiles').select('id,username,avatar_url,verified,user_badge').eq('id',userId).maybeSingle();
     if(pr.error && /avatar_url/i.test(pr.error.message||'')){
       pr=await sb.from('profiles').select('id,username').eq('id',userId).maybeSingle();
     }
@@ -75,36 +75,46 @@ async function openPublicProfile(userId){
 }
 function ownerBadgeHtml(profile){
   if(!profile)return '';
-  const verified=profile.verified_blue?'<span class="cb-verified" title="Verified">✓</span>':'';
-  const emoji=profile.badge_emoji?`<span class="cb-user-badge" title="Badge">${escapeHtml(profile.badge_emoji)}</span>`:'';
+  const verified=profile.verified?'<span class="cb-verified" title="Verified">✓</span>':'';
+  const emoji=profile.user_badge?`<span class="cb-user-badge" title="Badge">${escapeHtml(profile.user_badge)}</span>`:'';
   return verified+emoji;
 }
-function isAdmin(){
-  const u=currentUser;
-  const name=(u?.user_metadata?.username||u?.email?.split('@')[0]||'').trim().toLowerCase();
-  return name==='challo_boy';
+async function isAdmin(){
+  if(!currentUser)return false;
+  try{
+    const r=await sb.from('profiles').select('is_admin').eq('id',currentUser.id).maybeSingle();
+    return !r.error && r.data?.is_admin===true;
+  }catch(_){return false;}
 }
 async function loadAdminPanel(){
   const panel=$('#adminPanel');
   if(!panel)return;
   await syncAuth();
-  if(!isAdmin()){panel.innerHTML='';return;}
-  let result=await sb.from('profiles').select('id,username,avatar_url,verified_blue,badge_emoji').order('username',{ascending:true});
+  if(!(await isAdmin())){panel.innerHTML=`<div class="empty">Admin only.</div>`;return;}
+  const lang=currentLang()==='id';
+  let result=await sb.from('profiles').select('id,username,avatar_url,verified,user_badge').order('username',{ascending:true});
   if(result.error){panel.innerHTML=`<div class="error">${escapeHtml(result.error.message)}</div>`;return;}
   const rows=result.data||[];
-  panel.innerHTML=`<div class="admin-card"><div class="admin-head"><div><h2>🛡️ Admin Panel</h2><p>Kelola centang biru, badge emoji, dan script Public.</p></div></div><div class="admin-section"><h3>👤 Akun</h3><div class="admin-users">${rows.map(u=>`<div class="admin-user"><img src="${escapeHtml(u.avatar_url||'profil1.png')}" alt=""><div class="admin-user-main"><b>@${escapeHtml(u.username||'User')}</b><div class="admin-badges">${ownerBadgeHtml(u)||'<span class="admin-none">Tidak ada badge</span>'}</div></div><button class="mini-btn" data-admin-verify="${escapeHtml(u.id)}">${u.verified_blue?'Cabut Centang':'Centang Biru'}</button><button class="mini-btn" data-admin-emoji="${escapeHtml(u.id)}">${u.badge_emoji?'Ubah Emoji':'Tambah Emoji'}</button>${u.badge_emoji?`<button class="mini-btn danger" data-admin-remove-emoji="${escapeHtml(u.id)}">Hapus Emoji</button>`:''}</div>`).join('')||'<div class="empty">Belum ada akun.</div>'}</div></div><div class="admin-section"><h3>🗑️ Hapus Script Public</h3><div id="adminPublicScripts" class="admin-users"><div class="empty">Memuat...</div></div></div><div id="adminError" class="error"></div></div>`;
-  panel.querySelectorAll('[data-admin-verify]').forEach(b=>b.onclick=async()=>{await adminSetProfile(b.dataset.adminVerify,'verified_blue',!rows.find(x=>x.id===b.dataset.adminVerify)?.verified_blue);});
-  panel.querySelectorAll('[data-admin-emoji]').forEach(b=>b.onclick=async()=>{const current=rows.find(x=>x.id===b.dataset.adminEmoji)?.badge_emoji||'';const emoji=prompt('Masukkan emoji badge:',current);if(emoji===null)return;await adminSetProfile(b.dataset.adminEmoji,'badge_emoji',emoji.trim()||null);});
-  panel.querySelectorAll('[data-admin-remove-emoji]').forEach(b=>b.onclick=async()=>{await adminSetProfile(b.dataset.adminRemoveEmoji,'badge_emoji',null);});
+  panel.innerHTML=`<div class="admin-card"><div class="admin-head"><div><h2>🛡️ Admin Panel</h2><p>${lang?'Kelola centang biru, badge emoji, dan Script Public.':'Manage verification, emoji badges, and Public Scripts.'}</p></div></div><div class="admin-section"><h3>👤 ${lang?'Akun':'Accounts'}</h3><div class="admin-users">${rows.map(u=>`<div class="admin-user"><img src="${escapeHtml(normalizeAvatar(u.avatar_url))}" alt=""><div class="admin-user-main"><b>@${escapeHtml(u.username||'User')}</b><div class="admin-badges">${ownerBadgeHtml(u)||'<span class="admin-none">'+(lang?'Tidak ada badge':'No badge')+'</span>'}</div></div><button class="mini-btn" data-admin-verify="${escapeHtml(u.id)}">${u.verified?(lang?'Cabut Centang':'Remove Verification'):(lang?'Centang Biru':'Verify')}</button><button class="mini-btn" data-admin-emoji="${escapeHtml(u.id)}">${u.user_badge?(lang?'Ubah Badge':'Change Badge'):(lang?'Tambah Badge':'Add Badge')}</button>${u.user_badge?`<button class="mini-btn danger" data-admin-remove-emoji="${escapeHtml(u.id)}">${lang?'Hapus Badge':'Remove Badge'}</button>`:''}</div>`).join('')||`<div class="empty">${lang?'Belum ada akun.':'No accounts.'}</div>`}</div></div><div class="admin-section"><h3>🗑️ ${lang?'Hapus Script Public':'Remove Public Scripts'}</h3><div id="adminPublicScripts" class="admin-users"><div class="empty">${lang?'Memuat...':'Loading...'}</div></div></div><div id="adminError" class="error"></div></div>`;
+  panel.querySelectorAll('[data-admin-verify]').forEach(b=>b.onclick=async()=>{const row=rows.find(x=>x.id===b.dataset.adminVerify);await adminSetProfile(b.dataset.adminVerify,'verified',!row?.verified);});
+  panel.querySelectorAll('[data-admin-emoji]').forEach(b=>b.onclick=async()=>{const current=rows.find(x=>x.id===b.dataset.adminEmoji)?.user_badge||'';const badge=prompt(lang?'Masukkan emoji/badge:':'Enter emoji/badge:',current);if(badge===null)return;await adminSetProfile(b.dataset.adminEmoji,'user_badge',badge.trim()||null);});
+  panel.querySelectorAll('[data-admin-remove-emoji]').forEach(b=>b.onclick=async()=>{await adminSetProfile(b.dataset.adminRemoveEmoji,'user_badge',null);});
   let sr=await sb.from('scripts').select('id,filename,user_id,updated_at').eq('visibility','public').order('updated_at',{ascending:false}).limit(100);
   const list=$('#adminPublicScripts');
   if(sr.error){list.innerHTML=`<div class="error">${escapeHtml(sr.error.message)}</div>`;return;}
   const byId=new Map(rows.map(x=>[x.id,x]));
-  list.innerHTML=(sr.data||[]).map(s=>{const u=byId.get(s.user_id);return `<div class="admin-user"><div class="admin-user-main"><b>${escapeHtml(s.filename)}</b><div>@${escapeHtml(u?.username||'User')} ${ownerBadgeHtml(u)}</div></div><button class="mini-btn danger" data-admin-delete-script="${escapeHtml(s.id)}">Hapus dari Public</button></div>`}).join('')||'<div class="empty">Tidak ada Public Script.</div>';
-  list.querySelectorAll('[data-admin-delete-script]').forEach(b=>b.onclick=async()=>{if(!confirm('Hapus script ini dari Public Script?'))return;try{const r=await sb.rpc('admin_delete_public_script',{p_script_id:b.dataset.adminDeleteScript});if(r.error)throw r.error;await loadAdminPanel();await renderPublicScripts();}catch(e){const er=$('#adminError');if(er)er.textContent=e.message||'Gagal menghapus script.';}});
+  list.innerHTML=(sr.data||[]).map(s=>{const u=byId.get(s.user_id);return `<div class="admin-user"><div class="admin-user-main"><b>${escapeHtml(s.filename)}</b><div>@${escapeHtml(u?.username||'User')} ${ownerBadgeHtml(u)}</div></div><button class="mini-btn danger" data-admin-delete-script="${escapeHtml(s.id)}">${lang?'Hapus dari Public':'Remove from Public'}</button></div>`}).join('')||`<div class="empty">${lang?'Tidak ada Public Script.':'No Public Scripts.'}</div>`;
+  list.querySelectorAll('[data-admin-delete-script]').forEach(b=>b.onclick=async()=>{if(!confirm(lang?'Hapus script ini dari Public Script?':'Remove this script from Public Scripts?'))return;try{const r=await sb.from('scripts').delete().eq('id',b.dataset.adminDeleteScript);if(r.error)throw r.error;await loadAdminPanel();await renderPublicScripts();}catch(e){const er=$('#adminError');if(er)er.textContent=e.message||'Gagal menghapus script.';}});
 }
 async function adminSetProfile(id,field,value){
-  try{const payload=field==='verified_blue'?{p_user_id:id,p_verified:value}:{p_user_id:id,p_badge:value};const fn=field==='verified_blue'?'admin_set_verified':'admin_set_badge';const r=await sb.rpc(fn,payload);if(r.error)throw r.error;await loadAdminPanel();await renderPublicScripts();}catch(e){const er=$('#adminError');if(er)er.textContent=e.message||'Gagal memperbarui akun.';}
+  try{
+    if(!(await isAdmin()))throw new Error('Admin only');
+    const payload={}; payload[field]=value;
+    const r=await sb.from('profiles').update(payload).eq('id',id);
+    if(r.error)throw r.error;
+    await loadAdminPanel();
+    await renderPublicScripts();
+  }catch(e){const er=$('#adminError');if(er)er.textContent=e.message||'Gagal memperbarui akun.';}
 }
 
 async function renderPublicScripts(){
@@ -121,9 +131,9 @@ async function renderPublicScripts(){
     const ids=[...new Set(cachedPublicScripts.map(x=>x.user_id).filter(Boolean))];
     let profiles=[];
     if(ids.length){
-      let pr=await sb.from('profiles').select('id,username,avatar_url,verified_blue,badge_emoji').in('id',ids);
+      let pr=await sb.from('profiles').select('id,username,avatar_url,verified,user_badge').in('id',ids);
       if(pr.error && /avatar_url/i.test(pr.error.message||'')){
-        pr=await sb.from('profiles').select('id,username,verified_blue,badge_emoji').in('id',ids);
+        pr=await sb.from('profiles').select('id,username,verified,user_badge').in('id',ids);
       }
       profiles=pr.data||[];
     }
@@ -198,7 +208,7 @@ async function ensureProfileRecord(){
   try{
     // Supabase profile is the account's source of truth. Never copy another
     // account's browser localStorage avatar into this account.
-    let existing=await sb.from('profiles').select('id,username,avatar_url,verified_blue,badge_emoji').eq('id',currentUser.id).maybeSingle();
+    let existing=await sb.from('profiles').select('id,username,avatar_url,verified,user_badge').eq('id',currentUser.id).maybeSingle();
     if(existing.error && /avatar_url/i.test(existing.error.message||'')){
       existing=await sb.from('profiles').select('id,username').eq('id',currentUser.id).maybeSingle();
     }
@@ -431,11 +441,13 @@ function renderTutorials(){
 
 async function loadExtras(){await renderPublicScripts();if(currentUser){await loadFavorites();await loadHistory();await loadNotifications();}}
 
-function updateMenuAuth(){
+async function updateMenuAuth(){
   const logged=!!currentUser;
   $('#loginBtn')?.classList.toggle('hidden',logged);
   $('#registerBtn')?.classList.toggle('hidden',logged);
   $('#menuLogoutBtn')?.classList.toggle('hidden',!logged);
+  const admin=logged && await isAdmin();
+  $('#adminMenuItem')?.classList.toggle('hidden',!admin);
   loadProfile();
 }
 
@@ -519,7 +531,7 @@ function openMenu(){const menu=$('#sideMenu'),back=$('#menuBackdrop'),toggle=$('
 async function goTo(route){
   closeMenu();
   if(route==='stats'){ window.location.hash='#stats'; return; }
-  if(route==='create'||route==='workspace'||route==='profile'||route==='explore'){
+  if(route==='create'||route==='workspace'||route==='profile'||route==='explore'||route==='admin'){
     await syncAuth();
     if(!currentUser){ pendingRoute=route; openAuth('login'); return; }
   }
@@ -688,21 +700,25 @@ function routePage(){
   const profile=hash==='#profile';
   const tutorial=hash==='#scripts';
   const stats=hash==='#stats';
+  const admin=hash==='#admin';
   const home=document.querySelector('#home');
   const exploreView=document.querySelector('#explorePage');
   const workspaceView=document.querySelector('#workspace');
   const createView=document.querySelector('#createPage');
   const profileView=document.querySelector('#profilePage');
-  if(home) home.classList.toggle('page-hidden',workspace||create||profile||explore);
+  const adminView=document.querySelector('#adminPage');
+  if(home) home.classList.toggle('page-hidden',workspace||create||profile||explore||admin);
   if(stats) setTimeout(()=>document.querySelector('#stats')?.scrollIntoView({behavior:'smooth',block:'start'}),0);
   if(exploreView) exploreView.classList.toggle('page-hidden',!explore);
   if(workspaceView) workspaceView.classList.toggle('page-hidden',!workspace);
   if(createView) createView.classList.toggle('page-hidden',!create);
   if(profileView) profileView.classList.toggle('page-hidden',!profile);
+  if(adminView) adminView.classList.toggle('page-hidden',!admin);
   if(explore){ window.scrollTo({top:0,behavior:'smooth'}); syncAuth().then(()=>{if(!currentUser){pendingRoute='explore';openAuth('login');}else renderPublicScripts();}); }
   else if(workspace){ window.scrollTo({top:0,behavior:'smooth'}); renderScriptsIfPossible(); }
   else if(create){ window.scrollTo({top:0,behavior:'smooth'}); renderScriptsIfPossible(); }
-  else if(profile){ window.scrollTo({top:0,behavior:'smooth'}); loadProfile(); loadAdminPanel(); }
+  else if(profile){ window.scrollTo({top:0,behavior:'smooth'}); loadProfile(); }
+  else if(admin){ window.scrollTo({top:0,behavior:'smooth'}); syncAuth().then(async()=>{if(await isAdmin()) loadAdminPanel(); else window.location.hash='#home';}); }
   else { if(tutorial) setTimeout(()=>document.querySelector('#scripts')?.scrollIntoView({behavior:'smooth'}),0); else window.scrollTo({top:0,behavior:'smooth'}); }
 }
 window.addEventListener('hashchange',routePage);

@@ -63,6 +63,7 @@ profile-script-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));g
       <a href="#create" data-menu-route="create">✎ <span data-i18n="createScript">Buat Script</span></a>
       <a href="#scripts" data-menu-route="scripts">◉ <span data-i18n="navScripts">Tutorial</span></a>
       <a href="#profile" data-menu-route="profile">♙ <span data-i18n="profile">Profil</span></a>
+      <a href="#admin" id="adminMenuItem" class="hidden" data-menu-route="admin">🛡️ <span>Admin Panel</span></a>
       <a href="#stats" data-menu-route="stats">📊 <span data-i18n="statsTitle">Statistik Website</span></a>
           </nav>
     <div class="side-auth"><button class="btn ghost full" id="loginBtn">Login</button><button class="btn primary full" id="registerBtn">Register</button><button class="btn ghost full hidden" id="menuLogoutBtn">Logout</button></div>
@@ -116,13 +117,17 @@ profile-script-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));g
     </form>
   </section>
 
+  <section class="profile-page page-view page-hidden" id="adminPage">
+    <div id="adminPanel"></div>
+  </section>
+
   <section class="profile-page page-view page-hidden" id="profilePage">
     <div class="profile-card">
       <div class="avatar-wrap"><img src="profil1.png" alt="Profil" class="profile-avatar" id="profileAvatar"><div class="avatar-options" id="avatarOptions"><button type="button" class="avatar-choice" data-avatar="profil1.png"><img src="profil1.png" alt="Profil 1"></button><button type="button" class="avatar-choice" data-avatar="profil2.png"><img src="profil2.png" alt="Profil 2"></button><button type="button" class="avatar-choice" data-avatar="profil3.png"><img src="profil3.png" alt="Profil 3"></button><button type="button" class="avatar-choice" data-avatar="profil4.png"><img src="profil4.png" alt="Profil 4"></button><button type="button" class="avatar-choice" data-avatar="profil5.png"><img src="profil5.png" alt="Profil 5"></button></div></div>
       <div class="profile-info"><span class="profile-label" data-i18n="profile">Profil</span><h2 id="profileUsername">Guest</h2><p id="profileEmail">Login untuk melihat profil.</p></div>
       <div class="profile-actions"><button class="btn primary" id="profileCreateBtn" data-i18n="createScript">Buat Script</button><button class="btn ghost" id="profileLogoutBtn" data-i18n="logout">Logout</button></div>
       <div class="profile-notifications"><h3>🔔 <span data-i18n="notificationsTitle">Notifikasi</span></h3><div id="notificationsList" class="notification-list"></div></div>
-      <div id="adminPanel"></div>
+      
     </div>
   </section>
 
