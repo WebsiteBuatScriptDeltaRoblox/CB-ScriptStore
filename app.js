@@ -21,7 +21,7 @@ async function recordScriptView(id){try{await sb.from('script_views').insert({sc
 async function reportScript(id){if(!currentUser){openAuth('login');return;}const reason=prompt(currentLang()==='id'?'Alasan laporan:':'Report reason:');if(!reason)return;const {error}=await sb.from('script_reports').insert({script_id:id,reporter_id:currentUser.id,reason:reason.slice(0,500)});if(!error)alert(currentLang()==='id'?'Laporan terkirim.':'Report sent.');}
 function isValidAvatar(value){
   const v=String(value||'').trim();
-  return /^profil[1-5]\.png$/.test(v);
+  return /^profil(?:[1-9]|1[0-9]|2[0-5])\.png$/.test(v);
 }
 function normalizeAvatar(value){
   const v=String(value||'').trim();
@@ -99,8 +99,8 @@ function sanitizeScriptFilename(filename){
   return containsInappropriateWord(filename)?'the Sensor':filename;
 }
 function adminUserCard(u,lang){
-  const inputId='adminAvatarInput_'+String(u.id).replace(/[^a-zA-Z0-9_-]/g,'');
-  return `<div class="admin-user"><img src="${escapeHtml(normalizeAvatar(u.avatar_url))}" alt=""><div class="admin-user-main"><b>@${escapeHtml(u.username||'User')}</b><div class="admin-badges">${ownerBadgeHtml(u)||'<span class="admin-none">'+(lang?'Tidak ada badge':'No badge')+'</span>'}</div></div><button class="mini-btn" data-admin-verify="${escapeHtml(u.id)}">${u.verified?(lang?'Cabut Centang':'Remove Verification'):(lang?'Centang Biru':'Verify')}</button><button class="mini-btn" data-admin-emoji="${escapeHtml(u.id)}">${u.user_badge?(lang?'Ubah Badge':'Change Badge'):(lang?'Tambah Badge':'Add Badge')}</button>${u.user_badge?`<button class="mini-btn danger" data-admin-remove-emoji="${escapeHtml(u.id)}">${lang?'Hapus Badge':'Remove Badge'}</button>`:''}</div>`;
+  const avatars=Array.from({length:25},(_,i)=>`<button type="button" class="admin-avatar-choice ${normalizeAvatar(u.avatar_url)===`profil${i+1}.png`?'selected':''}" data-admin-avatar="${escapeHtml(u.id)}" data-avatar-value="profil${i+1}.png" title="profil${i+1}"><img src="profil${i+1}.png" alt="Profil ${i+1}"><span>${i+1}</span></button>`).join('');
+  return `<div class="admin-user admin-user-card"><img src="${escapeHtml(normalizeAvatar(u.avatar_url))}" alt=""><div class="admin-user-main"><b>@${escapeHtml(u.username||'User')}</b><div class="admin-badges">${ownerBadgeHtml(u)||'<span class="admin-none">'+(lang?'Tidak ada badge':'No badge')+'</span>'}</div></div><button class="mini-btn" data-admin-verify="${escapeHtml(u.id)}">${u.verified?(lang?'Cabut Centang':'Remove Verification'):(lang?'Centang Biru':'Verify')}</button><button class="mini-btn" data-admin-emoji="${escapeHtml(u.id)}">${u.user_badge?(lang?'Ubah Badge':'Change Badge'):(lang?'Tambah Badge':'Add Badge')}</button>${u.user_badge?`<button class="mini-btn danger" data-admin-remove-emoji="${escapeHtml(u.id)}">${lang?'Hapus Badge':'Remove Badge'}</button>`:''}<div class="admin-profile-picker"><div class="admin-profile-picker-title">${lang?'Profil akun (1–25)':'Account profile (1–25)'}</div><div class="admin-profile-grid">${avatars}</div></div></div>`;
 }
 function adminScriptCard(s,u,lang){
   return `<div class="admin-user"><div class="admin-user-main"><b>${escapeHtml(s.filename)}</b><div>@${escapeHtml(u?.username||'User')} ${ownerBadgeHtml(u)}</div></div><button class="mini-btn danger" data-admin-delete-script="${escapeHtml(s.id)}">${lang?'Hapus dari Public':'Remove from Public'}</button></div>`;
@@ -140,6 +140,7 @@ async function loadAdminPanel(){
     userList.querySelectorAll('[data-admin-verify]').forEach(b=>b.onclick=async()=>{const row=rows.find(x=>x.id===b.dataset.adminVerify);await adminSetProfile(b.dataset.adminVerify,'verified',!row?.verified);});
     userList.querySelectorAll('[data-admin-emoji]').forEach(b=>b.onclick=async()=>{const current=rows.find(x=>x.id===b.dataset.adminEmoji)?.user_badge||'';const badge=prompt(lang?'Masukkan emoji/badge:':'Enter emoji/badge:',current);if(badge===null)return;await adminSetProfile(b.dataset.adminEmoji,'user_badge',badge.trim()||null);});
     userList.querySelectorAll('[data-admin-remove-emoji]').forEach(b=>b.onclick=async()=>{await adminSetProfile(b.dataset.adminRemoveEmoji,'user_badge',null);});
+    userList.querySelectorAll('[data-admin-avatar]').forEach(b=>b.onclick=async()=>{await adminSetProfile(b.dataset.adminAvatar,'avatar_url',b.dataset.avatarValue);});
   };
   const renderScripts=()=>{
     const q=(scriptSearch?.value||'').trim().toLowerCase();
