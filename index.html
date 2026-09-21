@@ -22,17 +22,11 @@
 
 <style id="cb-social-fix">
 .public-profile{cursor:pointer}.public-profile:hover .public-profile-name{text-decoration:underline}
-.profile-social{display:flex;gap:18px;flex-wrap:wrap;margin:14px 0}.profile-social strong{display:block;font-size:18px}.profile-social span{font-size:12px;opacity:.7}.profile-follow-btn{min-width:130px}.profile-script-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}.profile-script-card{padding:14px;border:1px solid rgba(64,128,196,.25);border-radius:14px;background:rgba(7,18,32,.72)}.profile-script-card h4{margin:0 0 10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.profile-modal-head{display:flex;align-items:center;gap:12px}.profile-modal-avatar{width:64px;height:64px;border-radius:50%;object-fit:cover;border:1px solid rgba(57,190,255,.7)}.profile-modal-name{margin:0}.profile-modal-username{opacity:.75}.profile-modal-actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}.profile-modal-scripts-title{margin-top:22px}.profile-modal .modal-box{max-height:88vh;overflow:auto}
+profile-script-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}.profile-script-card{padding:14px;border:1px solid rgba(64,128,196,.25);border-radius:14px;background:rgba(7,18,32,.72)}.profile-script-card h4{margin:0 0 10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.profile-modal-head{display:flex;align-items:center;gap:12px}.profile-modal-avatar{width:64px;height:64px;border-radius:50%;object-fit:cover;border:1px solid rgba(57,190,255,.7)}.profile-modal-name{margin:0}.profile-modal-username{opacity:.75}.profile-modal-actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}.profile-modal-scripts-title{margin-top:22px}.profile-modal .modal-box{max-height:88vh;overflow:auto}
 @media (orientation:landscape) and (min-width:500px){.profile-script-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
 @media(max-width:520px){.profile-modal-avatar{width:54px;height:54px}.profile-script-card{padding:11px}}
 
-<style id="cb-social-profile-search-fix">
-.profile-own-social{display:flex;gap:24px;flex-wrap:wrap;margin:16px 0;padding:14px 0;border-top:1px solid rgba(64,128,196,.22);border-bottom:1px solid rgba(64,128,196,.22)}
-.profile-own-social>div{min-width:100px;text-align:center}.profile-own-social strong{display:block;font-size:22px}.profile-own-social span{font-size:.82rem;opacity:.72}
-.user-search-section{margin-top:18px}.user-search-results{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px}.user-result{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:10px;border:1px solid rgba(64,128,196,.28);border-radius:12px;background:rgba(7,18,32,.65);color:inherit;cursor:pointer}.user-result:hover{border-color:rgba(57,190,255,.65)}.user-result img{width:42px;height:42px;border-radius:50%;object-fit:cover}.user-result strong{display:block}.user-result small{opacity:.7}
-.public-profile{cursor:pointer;user-select:none}.public-profile:focus-visible{outline:2px solid #39beff;outline-offset:3px;border-radius:10px}
-@media(max-width:520px){.user-search-results{grid-template-columns:1fr}}
-</style>
+
 </style>
 </head>
 <body>
@@ -85,8 +79,7 @@
 
   <section class="workspace-section page-view page-hidden" id="explorePage">
     <div class="section-title"><div><h2>🔎 <span data-i18n="exploreTitle">Public Script</span></h2><p data-i18n="exploreDesc">Cari script publik dari pengguna yang terdaftar.</p></div></div>
-    <div class="tool-row public-tools"><input id="publicSearch" class="tool-input" placeholder="Cari script publik..." data-i18n-placeholder="publicSearchPlaceholder"><button class="btn primary" id="publishScriptBtn">⬆ <span data-i18n="publishScript">Upload</span></button></div>
-    <div class="user-search-section"><input id="publicUserSearch" class="tool-input" placeholder="Cari pengguna..." data-i18n-placeholder="searchUsersPlaceholder"><div id="publicUserResults" class="user-search-results"></div></div>
+    <div class="tool-row public-tools"><input id="publicSearch" class="tool-input" placeholder="Cari script publik..." data-i18n-placeholder="publicSearchPlaceholder"><button class="btn primary" id="publishScriptBtn">⬆ <span data-i18n="publishScript">Upload</span></button></div></div>
     <div id="publicCards" class="public-script-grid"></div>
   </section>
 
@@ -111,18 +104,9 @@
 
   <section class="profile-page page-view page-hidden" id="profilePage">
     <div class="profile-card">
-      <div class="avatar-wrap"><img src="logo.png" alt="CB ScriptStore" class="profile-avatar" id="profileAvatar"><div class="avatar-options" id="avatarOptions"><button type="button" class="avatar-choice" data-avatar="profil1.png"><img src="profil1.png" alt="Profil 1"></button><button type="button" class="avatar-choice" data-avatar="profil2.png"><img src="profil2.png" alt="Profil 2"></button><button type="button" class="avatar-choice" data-avatar="profil3.png"><img src="profil3.png" alt="Profil 3"></button><button type="button" class="avatar-choice" data-avatar="profil4.png"><img src="profil4.png" alt="Profil 4"></button><button type="button" class="avatar-choice" data-avatar="profil5.png"><img src="profil5.png" alt="Profil 5"></button></div></div>
+      <div class="avatar-wrap"><img src="profil1.png" alt="Profil" class="profile-avatar" id="profileAvatar"><div class="avatar-options" id="avatarOptions"><button type="button" class="avatar-choice" data-avatar="profil1.png"><img src="profil1.png" alt="Profil 1"></button><button type="button" class="avatar-choice" data-avatar="profil2.png"><img src="profil2.png" alt="Profil 2"></button><button type="button" class="avatar-choice" data-avatar="profil3.png"><img src="profil3.png" alt="Profil 3"></button><button type="button" class="avatar-choice" data-avatar="profil4.png"><img src="profil4.png" alt="Profil 4"></button><button type="button" class="avatar-choice" data-avatar="profil5.png"><img src="profil5.png" alt="Profil 5"></button></div></div>
       <div class="profile-info"><span class="profile-label" data-i18n="profile">Profil</span><h2 id="profileUsername">Guest</h2><p id="profileEmail">Login untuk melihat profil.</p></div>
       <div class="profile-actions"><button class="btn primary" id="profileCreateBtn" data-i18n="createScript">Buat Script</button><button class="btn ghost" id="profileLogoutBtn" data-i18n="logout">Logout</button></div>
-      <div class="profile-own-social">
-        <div><strong id="myFollowersCount">0</strong><span data-i18n="followers">Pengikut</span></div>
-        <div><strong id="myFollowingCount">0</strong><span data-i18n="following">Mengikuti</span></div>
-      </div>
-      <div class="user-search-section">
-        <h3>🔎 <span data-i18n="searchUsersTitle">Cari Pengguna</span></h3>
-        <input id="profileUserSearch" class="tool-input" placeholder="Cari username..." data-i18n-placeholder="searchUsersPlaceholder">
-        <div id="profileUserResults" class="user-search-results"></div>
-      </div>
       <div class="profile-notifications"><h3>🔔 <span data-i18n="notificationsTitle">Notifikasi</span></h3><div id="notificationsList" class="notification-list"></div></div>
     </div>
   </section>
@@ -145,11 +129,6 @@
         <img id="publicProfileAvatar" class="profile-modal-avatar" src="profil1.png" alt="Profile">
         <div><h2 id="publicProfileName" class="profile-modal-name">@User</h2><div id="publicProfileUsername" class="profile-modal-username"></div></div>
       </div>
-      <div class="profile-social">
-        <div><strong id="publicFollowersCount">0</strong><span data-i18n="followers">Pengikut</span></div>
-        <div><strong id="publicFollowingCount">0</strong><span data-i18n="following">Mengikuti</span></div>
-      </div>
-      <div class="profile-modal-actions"><button class="btn primary profile-follow-btn" id="publicFollowBtn" data-i18n="follow">Ikuti</button></div>
       <h3 class="profile-modal-scripts-title"><span data-i18n="publicProfileScripts">Script Public</span></h3>
       <div id="publicProfileScripts" class="profile-script-grid"></div>
     </div>

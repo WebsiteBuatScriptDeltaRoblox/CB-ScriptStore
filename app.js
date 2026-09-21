@@ -19,74 +19,32 @@ async function toggleFavorite(id){if(!currentUser){openAuth('login');return;}con
   await renderPublicScripts(); await renderScriptsIfPossible();}
 async function recordScriptView(id){try{await sb.from('script_views').insert({script_id:id,user_id:currentUser?.id||null,visitor_id:ensureVisitorId()});await sb.rpc('increment_script_view',{p_script_id:id});}catch(_){} if(currentUser){try{await sb.from('script_history').upsert({user_id:currentUser.id,script_id:id,last_viewed_at:new Date().toISOString()},{onConflict:'user_id,script_id'});}catch(_){}}}
 async function reportScript(id){if(!currentUser){openAuth('login');return;}const reason=prompt(currentLang()==='id'?'Alasan laporan:':'Report reason:');if(!reason)return;const {error}=await sb.from('script_reports').insert({script_id:id,reporter_id:currentUser.id,reason:reason.slice(0,500)});if(!error)alert(currentLang()==='id'?'Laporan terkirim.':'Report sent.');}
-async function loadFollowData(ownerIds){
-  const ids=[...new Set((ownerIds||[]).filter(Boolean).map(String))];
-  const counts=new Map(); const followed=new Set();
-  if(!ids.length)return {counts,followed};
-  try{
-    const q=await sb.from('follows').select('follower_id,following_id').in('following_id',ids);
-    (q.data||[]).forEach(r=>{const k=String(r.following_id);counts.set(k,(counts.get(k)||0)+1);if(currentUser&&String(r.follower_id)===String(currentUser.id))followed.add(k);});
-  }catch(_){}
-  return {counts,followed};
-}
 async function fetchPublicProfile(userId){
-  try{
-    const rpc=await sb.rpc('get_public_profile',{p_user_id:userId});
-    if(!rpc.error){const x=Array.isArray(rpc.data)?rpc.data[0]:rpc.data;if(x?.id)return x;}
-  }catch(_){}
   try{
     const pr=await sb.from('profiles').select('id,username,avatar_url').eq('id',userId).maybeSingle();
     if(pr.data?.id)return pr.data;
   }catch(_){}
+  if(currentUser && String(currentUser.id)===String(userId)){
+    return {id:userId,username:currentUser.user_metadata?.username||currentUser.email?.split('@')[0]||'User',avatar_url:'profil1.png'};
+  }
   return null;
-}
-async function searchUsers(query,targetId){
-  const box=$(targetId); if(!box)return;
-  const q=(query||'').trim();
-  if(q.length<1){box.innerHTML='';return;}
-  try{
-    const r=await sb.rpc('search_public_users',{p_query:q,p_limit:30});
-    if(r.error)throw r.error;
-    const rows=r.data||[];
-    if(!rows.length){box.innerHTML=`<div class="empty">${escapeHtml(tr('noUsersFound'))}</div>`;return;}
-    box.innerHTML=rows.map(u=>`<button type="button" class="user-result" data-user-result="${escapeHtml(u.id)}"><img src="${escapeHtml(u.avatar_url||'profil1.png')}" alt="${escapeHtml(u.username||'User')}"><span><strong>@${escapeHtml(u.username||'User')}</strong><small>${escapeHtml(tr('viewProfile'))}</small></span></button>`).join('');
-    box.querySelectorAll('[data-user-result]').forEach(b=>b.addEventListener('click',()=>openPublicProfile(b.dataset.userResult)));
-  }catch(e){box.innerHTML=`<div class="empty">${escapeHtml(e.message||tr('userSearchError'))}</div>`;}
 }
 async function openPublicProfile(userId){
   await syncAuth();
   if(!currentUser){pendingRoute='explore';openAuth('login');return;}
   const modal=$('#publicProfileModal');if(!modal)return;
   modal.classList.remove('hidden');
-  const avatar=$('#publicProfileAvatar'),name=$('#publicProfileName'),uname=$('#publicProfileUsername'),fc=$('#publicFollowersCount'),fg=$('#publicFollowingCount'),btn=$('#publicFollowBtn'),scripts=$('#publicProfileScripts');
+  const avatar=$('#publicProfileAvatar'),name=$('#publicProfileName'),scripts=$('#publicProfileScripts');
   scripts.innerHTML=`<div class="empty">${escapeHtml(tr('loadingScripts')||'Loading...')}</div>`;
   const profile=await fetchPublicProfile(userId);
-  if(!profile){scripts.innerHTML=`<div class="empty">${escapeHtml(tr('profileNotFound'))}</div>`;return;}
+  if(!profile){scripts.innerHTML=`<div class="empty">${escapeHtml(tr('profileNotFound')||'Profile not found.')}</div>`;return;}
   const owner=profile.username||'User';
-  avatar.src=profile.avatar_url||'profil1.png';name.textContent='@'+owner;uname.textContent=owner;
-  const [followers,following,rows]=await Promise.all([
-    sb.from('follows').select('follower_id',{count:'exact',head:true}).eq('following_id',userId),
-    sb.from('follows').select('following_id',{count:'exact',head:true}).eq('follower_id',userId),
-    sb.from('scripts').select('id,filename').eq('user_id',userId).eq('visibility','public').order('updated_at',{ascending:false}).limit(50)
-  ]);
-  fc.textContent=String(followers.count||0);fg.textContent=String(following.count||0);
-  const isSelf=String(userId)===String(currentUser.id);
-  btn.style.display=isSelf?'none':'';
-  let isFollowing=false;
-  if(!isSelf){const f=await sb.from('follows').select('follower_id').eq('follower_id',currentUser.id).eq('following_id',userId).maybeSingle();isFollowing=!!f.data;}
-  btn.dataset.userId=userId;btn.dataset.following=isFollowing?'1':'0';btn.textContent=tr(isFollowing?'unfollow':'follow');
+  avatar.src=profile.avatar_url||'profil1.png';
+  name.textContent='@'+owner;
+  const rows=await sb.from('scripts').select('id,filename').eq('user_id',userId).eq('visibility','public').order('updated_at',{ascending:false}).limit(50);
   const list=rows.data||[];
   scripts.innerHTML=list.length?list.map(s=>`<article class="profile-script-card"><h4>${escapeHtml(s.filename)}</h4><button class="mini-btn copy-script-btn" data-profile-copy="${s.id}">${escapeHtml(tr('copyScript'))}</button></article>`).join(''):`<div class="empty">${escapeHtml(tr('emptyPublicScripts'))}</div>`;
   scripts.querySelectorAll('[data-profile-copy]').forEach(b=>b.onclick=async()=>{try{await navigator.clipboard.writeText(rawLoadstring(b.dataset.profileCopy));const old=b.textContent;b.textContent=tr('copiedScript');setTimeout(()=>b.textContent=old,1200);}catch(_){}});
-}
-async function toggleFollow(userId){
-  await syncAuth();if(!currentUser||String(currentUser.id)===String(userId))return;
-  const btn=$('#publicFollowBtn');const following=btn?.dataset.following==='1';
-  try{
-    if(following){const {error}=await sb.from('follows').delete().eq('follower_id',currentUser.id).eq('following_id',userId);if(error)throw error;}
-    else{const {error}=await sb.from('follows').insert({follower_id:currentUser.id,following_id:userId});if(error)throw error;}
-    await openPublicProfile(userId);
-  }catch(e){alert(e.message||'Follow error');}
 }
 async function renderPublicScripts(){
   const box=$('#publicCards'); if(!box)return;
@@ -156,7 +114,19 @@ async function syncAuth(){
   const {data:{session}} = await sb.auth.getSession();
   token = session?.access_token || null;
   currentUser = session?.user || null;
+  if(currentUser) await ensureProfileRecord();
   return session;
+}
+async function ensureProfileRecord(){
+  if(!currentUser)return;
+  const username=(currentUser.user_metadata?.username||currentUser.email?.split('@')[0]||'User').trim();
+  try{
+    const existing=await sb.from('profiles').select('avatar_url').eq('id',currentUser.id).maybeSingle();
+    const payload={id:currentUser.id,username};
+    if(!existing.data) payload.avatar_url='profil1.png';
+    const {error}=await sb.from('profiles').upsert(payload,{onConflict:'id'});
+    if(error) console.warn('Profile sync failed:',error.message);
+  }catch(e){ console.warn('Profile sync failed:',e.message||e); }
 }
 
 const levels = [
@@ -348,44 +318,9 @@ const myScriptsHomeByLang={id:'Script Saya',en:'My Scripts',es:'Mis Scripts',pt:
 for(const [lang,label] of Object.entries(myScriptsHomeByLang)){if(ui[lang])ui[lang].myScriptsButton=label;}
 function tr(k){
   const d=ui[currentLang()]||ui.en||{};
-  const social={
-    id:{searchUsersTitle:'Cari Pengguna',searchUsersPlaceholder:'Cari username...',noUsersFound:'Pengguna tidak ditemukan.',userSearchError:'Gagal mencari pengguna.',viewProfile:'Lihat profil',followers:'Pengikut',following:'Mengikuti',follow:'Ikuti',unfollow:'Batal Ikuti'},
-    en:{searchUsersTitle:'Find Users',searchUsersPlaceholder:'Search username...',noUsersFound:'No users found.',userSearchError:'User search failed.',viewProfile:'View profile',followers:'Followers',following:'Following',follow:'Follow',unfollow:'Unfollow'},
-    es:{searchUsersTitle:'Buscar usuarios',searchUsersPlaceholder:'Buscar usuario...',noUsersFound:'No se encontraron usuarios.',userSearchError:'No se pudo buscar usuarios.',viewProfile:'Ver perfil',followers:'Seguidores',following:'Siguiendo',follow:'Seguir',unfollow:'Dejar de seguir'},
-    pt:{searchUsersTitle:'Buscar usuários',searchUsersPlaceholder:'Buscar usuário...',noUsersFound:'Nenhum usuário encontrado.',userSearchError:'Falha ao buscar usuários.',viewProfile:'Ver perfil',followers:'Seguidores',following:'Seguindo',follow:'Seguir',unfollow:'Deixar de seguir'},
-    fr:{searchUsersTitle:'Rechercher des utilisateurs',searchUsersPlaceholder:'Rechercher un utilisateur...',noUsersFound:'Aucun utilisateur trouvé.',userSearchError:'Recherche impossible.',viewProfile:'Voir le profil',followers:'Abonnés',following:'Abonnements',follow:'Suivre',unfollow:'Ne plus suivre'},
-    de:{searchUsersTitle:'Nutzer suchen',searchUsersPlaceholder:'Nutzername suchen...',noUsersFound:'Keine Nutzer gefunden.',userSearchError:'Nutzersuche fehlgeschlagen.',viewProfile:'Profil ansehen',followers:'Follower',following:'Folge ich',follow:'Folgen',unfollow:'Nicht mehr folgen'},
-    ja:{searchUsersTitle:'ユーザーを検索',searchUsersPlaceholder:'ユーザー名を検索…',noUsersFound:'ユーザーが見つかりません。',userSearchError:'ユーザー検索に失敗しました。',viewProfile:'プロフィールを見る',followers:'フォロワー',following:'フォロー中',follow:'フォロー',unfollow:'フォロー解除'},
-    ko:{searchUsersTitle:'사용자 검색',searchUsersPlaceholder:'사용자 이름 검색…',noUsersFound:'사용자를 찾을 수 없습니다.',userSearchError:'사용자 검색에 실패했습니다.',viewProfile:'프로필 보기',followers:'팔로워',following:'팔로잉',follow:'팔로우',unfollow:'팔로우 취소'},
-    zh:{searchUsersTitle:'搜索用户',searchUsersPlaceholder:'搜索用户名…',noUsersFound:'未找到用户。',userSearchError:'搜索用户失败。',viewProfile:'查看个人资料',followers:'粉丝',following:'关注',follow:'关注',unfollow:'取消关注'},
-    'zh-TW':{searchUsersTitle:'搜尋使用者',searchUsersPlaceholder:'搜尋使用者名稱…',noUsersFound:'找不到使用者。',userSearchError:'搜尋使用者失敗。',viewProfile:'查看個人資料',followers:'粉絲',following:'追蹤中',follow:'追蹤',unfollow:'取消追蹤'},
-    ru:{searchUsersTitle:'Поиск пользователей',searchUsersPlaceholder:'Поиск имени пользователя…',noUsersFound:'Пользователи не найдены.',userSearchError:'Не удалось найти пользователей.',viewProfile:'Открыть профиль',followers:'Подписчики',following:'Подписки',follow:'Подписаться',unfollow:'Отписаться'},
-    hi:{searchUsersTitle:'उपयोगकर्ता खोजें',searchUsersPlaceholder:'उपयोगकर्ता नाम खोजें…',noUsersFound:'उपयोगकर्ता नहीं मिले।',userSearchError:'उपयोगकर्ता खोज विफल हुई।',viewProfile:'प्रोफ़ाइल देखें',followers:'फ़ॉलोअर',following:'फ़ॉलो कर रहे हैं',follow:'फ़ॉलो करें',unfollow:'अनफ़ॉलो करें'},
-    ar:{searchUsersTitle:'البحث عن المستخدمين',searchUsersPlaceholder:'ابحث عن اسم المستخدم…',noUsersFound:'لم يتم العثور على مستخدمين.',userSearchError:'فشل البحث عن المستخدمين.',viewProfile:'عرض الملف الشخصي',followers:'المتابعون',following:'يتابع',follow:'متابعة',unfollow:'إلغاء المتابعة'},
-    vi:{searchUsersTitle:'Tìm người dùng',searchUsersPlaceholder:'Tìm tên người dùng…',noUsersFound:'Không tìm thấy người dùng.',userSearchError:'Không thể tìm người dùng.',viewProfile:'Xem hồ sơ',followers:'Người theo dõi',following:'Đang theo dõi',follow:'Theo dõi',unfollow:'Bỏ theo dõi'},
-    th:{searchUsersTitle:'ค้นหาผู้ใช้',searchUsersPlaceholder:'ค้นหาชื่อผู้ใช้…',noUsersFound:'ไม่พบผู้ใช้',userSearchError:'ค้นหาผู้ใช้ไม่สำเร็จ',viewProfile:'ดูโปรไฟล์',followers:'ผู้ติดตาม',following:'กำลังติดตาม',follow:'ติดตาม',unfollow:'เลิกติดตาม'},
-    pl:{searchUsersTitle:'Szukaj użytkowników',searchUsersPlaceholder:'Szukaj nazwy użytkownika…',noUsersFound:'Nie znaleziono użytkowników.',userSearchError:'Nie udało się wyszukać użytkowników.',viewProfile:'Zobacz profil',followers:'Obserwujący',following:'Obserwowani',follow:'Obserwuj',unfollow:'Przestań obserwować'},
-    it:{searchUsersTitle:'Cerca utenti',searchUsersPlaceholder:'Cerca nome utente…',noUsersFound:'Nessun utente trovato.',userSearchError:'Ricerca utenti non riuscita.',viewProfile:'Vedi profilo',followers:'Follower',following:'Seguiti',follow:'Segui',unfollow:'Non seguire più'},
-    fil:{searchUsersTitle:'Maghanap ng User',searchUsersPlaceholder:'Maghanap ng username...',noUsersFound:'Walang nahanap na user.',userSearchError:'Hindi mahanap ang user.',viewProfile:'Tingnan ang profile',followers:'Mga follower',following:'Sinusundan',follow:'Sundan',unfollow:'I-unfollow'},
-    tr:{searchUsersTitle:'Kullanıcı ara',searchUsersPlaceholder:'Kullanıcı adı ara...',noUsersFound:'Kullanıcı bulunamadı.',userSearchError:'Kullanıcı araması başarısız.',viewProfile:'Profili görüntüle',followers:'Takipçi',following:'Takip',follow:'Takip et',unfollow:'Takibi bırak'},
-    'pt-PT':{searchUsersTitle:'Pesquisar utilizadores',searchUsersPlaceholder:'Pesquisar nome de utilizador...',noUsersFound:'Nenhum utilizador encontrado.',userSearchError:'Falha ao pesquisar utilizadores.',viewProfile:'Ver perfil',followers:'Seguidores',following:'A seguir',follow:'Seguir',unfollow:'Deixar de seguir'}
-  };
-  const f={navScript:'Script',navWorkspace:'Script',myScripts:'My Scripts',myScriptsButton:'Lihat Script Saya',scriptCreator:'Pembuat script',websiteLink:'Link website',viewScript:'Script',exploreTitle:'Jelajahi Script',exploreDesc:'Cari script publik dan simpan favoritmu.',searchPlaceholder:'Cari script...',publicSearchPlaceholder:'Cari script publik...',publishScript:'Upload',publishTitle:'Pilih Script untuk Dipublic',publishDesc:'Pilih salah satu script milikmu untuk dijadikan Public.',needLoginPublic:'Login untuk melihat Public Script.',noScriptsToPublish:'Belum ada script. Buat script terlebih dahulu.',publishNow:'Jadikan Public',alreadyPublic:'Sudah Public',published:'Script berhasil dibuat Public.',loadingScripts:'Memuat script...',historyTitle:'Riwayat',notificationsTitle:'Notifikasi',emptyPublicScripts:'Belum ada script publik.',copyRaw:'Salin Link Raw',followers:'Pengikut',following:'Mengikuti',follow:'Ikuti',unfollow:'Batal Ikuti',publicProfileScripts:'Script Public',profileNotFound:'Profil tidak ditemukan.',copyScript:'Salin Script',copiedScript:'Tersalin',myPublicScriptsTitle:'Public Script Saya',myPublicScriptsDesc:'Pilih script buatanmu yang sudah diatur menjadi Public.',selectScript:'Pilih Script',publicBy:'Dibuat oleh'};
+  const f={navScript:'Script',navWorkspace:'Script',myScripts:'My Scripts',myScriptsButton:'Lihat Script Saya',scriptCreator:'Pembuat script',websiteLink:'Link website',viewScript:'Script',exploreTitle:'Jelajahi Script',exploreDesc:'Cari script publik dan simpan favoritmu.',searchPlaceholder:'Cari script...',publicSearchPlaceholder:'Cari script publik...',publishScript:'Upload',publishTitle:'Pilih Script untuk Dipublic',publishDesc:'Pilih salah satu script milikmu untuk dijadikan Public.',needLoginPublic:'Login untuk melihat Public Script.',noScriptsToPublish:'Belum ada script. Buat script terlebih dahulu.',publishNow:'Jadikan Public',alreadyPublic:'Sudah Public',published:'Script berhasil dibuat Public.',loadingScripts:'Memuat script...',historyTitle:'Riwayat',notificationsTitle:'Notifikasi',emptyPublicScripts:'Belum ada script publik.',copyRaw:'Salin Link Raw',publicProfileScripts:'Script Public',profileNotFound:'Profil tidak ditemukan.',copyScript:'Salin Script',copiedScript:'Tersalin',myPublicScriptsTitle:'Public Script Saya',myPublicScriptsDesc:'Pilih script buatanmu yang sudah diatur menjadi Public.',selectScript:'Pilih Script',publicBy:'Dibuat oleh'};
   return d[k] ?? social[currentLang()]?.[k] ?? ui.id?.[k] ?? f[k] ?? k;
 }
-const socialI18n={
-  id:{followers:'Pengikut',following:'Mengikuti',follow:'Ikuti',unfollow:'Batal Ikuti',publicProfileScripts:'Script Public',profileNotFound:'Profil tidak ditemukan.',copyScript:'Salin Script',copiedScript:'Tersalin'},
-  en:{followers:'Followers',following:'Following',follow:'Follow',unfollow:'Unfollow',publicProfileScripts:'Public Scripts',profileNotFound:'Profile not found.',copyScript:'Copy Script',copiedScript:'Copied'},
-  es:{followers:'Seguidores',following:'Siguiendo',follow:'Seguir',unfollow:'Dejar de seguir',publicProfileScripts:'Scripts públicos',profileNotFound:'Perfil no encontrado.',copyScript:'Copiar script',copiedScript:'Copiado'},
-  pt:{followers:'Seguidores',following:'Seguindo',follow:'Seguir',unfollow:'Deixar de seguir',publicProfileScripts:'Scripts públicos',profileNotFound:'Perfil não encontrado.',copyScript:'Copiar script',copiedScript:'Copiado'},
-  fr:{followers:'Abonnés',following:'Abonnements',follow:'Suivre',unfollow:'Ne plus suivre',publicProfileScripts:'Scripts publics',profileNotFound:'Profil introuvable.',copyScript:'Copier le script',copiedScript:'Copié'},
-  de:{followers:'Follower',following:'Folge ich',follow:'Folgen',unfollow:'Nicht mehr folgen',publicProfileScripts:'Öffentliche Skripte',profileNotFound:'Profil nicht gefunden.',copyScript:'Skript kopieren',copiedScript:'Kopiert'},
-  ja:{followers:'フォロワー',following:'フォロー中',follow:'フォロー',unfollow:'フォロー解除',publicProfileScripts:'公開スクリプト',profileNotFound:'プロフィールが見つかりません。',copyScript:'スクリプトをコピー',copiedScript:'コピーしました'},
-  ko:{followers:'팔로워',following:'팔로잉',follow:'팔로우',unfollow:'팔로우 취소',publicProfileScripts:'공개 스크립트',profileNotFound:'프로필을 찾을 수 없습니다.',copyScript:'스크립트 복사',copiedScript:'복사됨'},
-  zh:{followers:'粉丝',following:'关注',follow:'关注',unfollow:'取消关注',publicProfileScripts:'公开脚本',profileNotFound:'找不到个人资料。',copyScript:'复制脚本',copiedScript:'已复制'},
-  'zh-TW':{followers:'粉絲',following:'追蹤中',follow:'追蹤',unfollow:'取消追蹤',publicProfileScripts:'公開腳本',profileNotFound:'找不到個人資料。',copyScript:'複製腳本',copiedScript:'已複製'}
-};
-for(const [lang,vals] of Object.entries(socialI18n)){if(ui[lang])Object.assign(ui[lang],vals);}
 
 function visibilityLabel(v){return v==='public'?tr('public'):v==='private'?tr('private'):v||'';}
 function tutorialData(){ return tutorialText[currentLang()] || fallbackTutorial; }
@@ -466,8 +401,6 @@ async function loadProfile(){
     if(emailEl)emailEl.textContent=tr('profileGuest');
     if(menuName)menuName.textContent='Guest';
     if(menuStatus)menuStatus.textContent=tr('notLoggedIn');
-    if($('#myFollowersCount'))$('#myFollowersCount').textContent='0';
-    if($('#myFollowingCount'))$('#myFollowingCount').textContent='0';
     return;
   }
   let username=currentUser.user_metadata?.username || '';
@@ -483,15 +416,6 @@ async function loadProfile(){
   if(menuName)menuName.textContent=username;
   if(menuStatus)menuStatus.textContent=tr('loggedIn');
   if($('#profileAvatar'))$('#profileAvatar').src=avatar;
-  try{
-    const [followers,following]=await Promise.all([
-      sb.from('follows').select('follower_id',{count:'exact',head:true}).eq('following_id',currentUser.id),
-      sb.from('follows').select('following_id',{count:'exact',head:true}).eq('follower_id',currentUser.id)
-    ]);
-    if($('#myFollowersCount'))$('#myFollowersCount').textContent=String(followers.count||0);
-    if($('#myFollowingCount'))$('#myFollowingCount').textContent=String(following.count||0);
-  }catch(_){}
-  await searchUsers($('#profileUserSearch')?.value||'', '#profileUserResults');
 }
 function closeMenu(){const menu=$('#sideMenu'),back=$('#menuBackdrop'),toggle=$('#menuToggle');if(menu)menu.classList.remove('open');if(back)back.classList.add('hidden');if(toggle){toggle.setAttribute('aria-expanded','false');toggle.classList.remove('active');}if(menu)menu.setAttribute('aria-hidden','true');}
 function openMenu(){const menu=$('#sideMenu'),back=$('#menuBackdrop'),toggle=$('#menuToggle');if(menu)menu.classList.add('open');if(back)back.classList.remove('hidden');if(toggle){toggle.setAttribute('aria-expanded','true');toggle.classList.add('active');}if(menu)menu.setAttribute('aria-hidden','false');loadProfile();}
@@ -610,7 +534,7 @@ $('#backToScripts').onclick=()=>goTo('workspace');
 $('#logoutBtn')?.addEventListener('click',logout);
 $('#profileLogoutBtn')?.addEventListener('click',logout);
 $('#profileCreateBtn')?.addEventListener('click',()=>goTo('create'));
-document.querySelectorAll('.avatar-choice').forEach(b=>b.addEventListener('click',async()=>{await syncAuth();if(!currentUser)return;const avatar=b.dataset.avatar;try{const {error}=await sb.from('profiles').update({avatar_url:avatar}).eq('id',currentUser.id);if(error)throw error;$('#profileAvatar').src=avatar;}catch(e){console.error(e);}}));
+document.querySelectorAll('.avatar-choice').forEach(b=>b.addEventListener('click',async()=>{await syncAuth();if(!currentUser)return;const avatar=b.dataset.avatar;try{const username=(currentUser.user_metadata?.username||currentUser.email?.split('@')[0]||'User').trim();const {error}=await sb.from('profiles').upsert({id:currentUser.id,username,avatar_url:avatar},{onConflict:'id'});if(error)throw error;$('#profileAvatar').src=avatar;}catch(e){console.error(e);alert(e.message||'Gagal menyimpan foto profil.');}}));
 $('#loginBtn').onclick=()=>{closeMenu();openAuth('login');};
 $('#registerBtn').onclick=()=>{closeMenu();openAuth('register');};
 $('#menuLogoutBtn').onclick=()=>{closeMenu();logout();};
@@ -624,7 +548,7 @@ $('#closeModal').onclick=()=>{$('#modal').classList.add('hidden');pendingRoute=n
 $('#switchMode').onclick=()=>openAuth(mode==='login'?'register':'login');
 $('#authForm').onsubmit=submitAuth;
 $('#browseBtn').onclick=()=>goTo('scripts');
-$('#scriptSearch')?.addEventListener('input',renderScriptsIfPossible);$('#publicSearch')?.addEventListener('input',renderPublicScripts);$('#profileUserSearch')?.addEventListener('input',e=>searchUsers(e.target.value,'#profileUserResults'));$('#publicUserSearch')?.addEventListener('input',e=>searchUsers(e.target.value,'#publicUserResults'));$('#publishScriptBtn')?.addEventListener('click',openPublishModal);$('#publishClose')?.addEventListener('click',()=>$('#publishModal')?.classList.add('hidden'));$('#publicProfileClose')?.addEventListener('click',()=>$('#publicProfileModal')?.classList.add('hidden'));$('#publicFollowBtn')?.addEventListener('click',()=>toggleFollow($('#publicFollowBtn').dataset.userId));
+$('#scriptSearch')?.addEventListener('input',renderScriptsIfPossible);$('#publicSearch')?.addEventListener('input',renderPublicScripts);$('#publishScriptBtn')?.addEventListener('click',openPublishModal);$('#publishClose')?.addEventListener('click',()=>$('#publishModal')?.classList.add('hidden'));$('#publicProfileClose')?.addEventListener('click',()=>$('#publicProfileModal')?.classList.add('hidden'));
 $('#viewAll').onclick=()=>goTo('scripts');
 $('#tutorialMenu').addEventListener('click',e=>{const b=e.target.closest('.tutorial-btn');if(b)openTutorial(Number(b.dataset.tutorial));});
 document.querySelectorAll('[data-feature-route]').forEach(b=>b.addEventListener('click',()=>goTo(b.dataset.featureRoute)));
