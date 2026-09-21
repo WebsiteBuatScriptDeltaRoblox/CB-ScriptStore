@@ -191,8 +191,11 @@ async function renderPublicScripts(){
       const p=pm.get(x.user_id)||{};
       const isMine=String(x.user_id)===String(currentUser.id);
       x.profiles={
+        id:p.id || x.user_id,
         username:p.username || (isMine ? (currentUser.user_metadata?.username || currentUser.email?.split('@')[0] || 'User') : 'User'),
-        avatar_url:isMine ? resolveAvatar(currentUser.user_metadata?.avatar_url, p.avatar_url) : resolveAvatar(null, p.avatar_url)
+        avatar_url:isMine ? resolveAvatar(currentUser.user_metadata?.avatar_url, p.avatar_url) : resolveAvatar(null, p.avatar_url),
+        verified:p.verified === true,
+        user_badge:p.user_badge || null
       };
     });
     const rows=cachedPublicScripts.filter(s=>(!q||(s.filename+' '+(s.profiles?.username||'')).toLowerCase().includes(q)));
