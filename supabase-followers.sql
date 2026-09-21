@@ -52,3 +52,24 @@ from auth.users u
 where p.id = u.id
   and (p.username is null or btrim(p.username) = '')
   and nullif(u.raw_user_meta_data->>'username','') is not null;
+
+
+-- Public user search. Keeps auth.users private while exposing only safe profile fields.
+drop function if exists public.search_public_users(text, integer);
+create or replace function public.search_public_users(p_query text, p_limit integer default 30)
+returns table(id uuid, username text, avatar_url text)
+language sql
+security definer
+set search_path = public
+as $$
+  select
+    u.id,
+    coalesce(nullif(p.username,''), u.raw_user_meta_data->>'username', split_part(u.email,'@',1)) as username,
+    coalesce(nullif(p.avatar_url,''), 'profil1.png') as avatar_url
+  from auth.users u
+  left join public.profiles p on p.id = u.id
+  where lower(coalesce(nullif(p.username,''), u.raw_user_meta_data->>'username', split_part(u.email,'@',1))) like '%' || lower(trim(p_query)) || '%'
+  order by lower(coalesce(nullif(p.username,''), u.raw_user_meta_data->>'username', split_part(u.email,'@',1)))
+  limit greatest(1, least(coalesce(p_limit,30), 50));
+$$;
+grant execute on function public.search_public_users(text, integer) to authenticated;
