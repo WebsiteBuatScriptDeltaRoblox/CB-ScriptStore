@@ -99,8 +99,7 @@ function sanitizeScriptFilename(filename){
   return containsInappropriateWord(filename)?'the Sensor':filename;
 }
 function adminUserCard(u,lang){
-  const avatars=Array.from({length:25},(_,i)=>`<button type="button" class="admin-avatar-choice ${normalizeAvatar(u.avatar_url)===`profil${i+1}.png`?'selected':''}" data-admin-avatar="${escapeHtml(u.id)}" data-avatar-value="profil${i+1}.png" title="profil${i+1}"><img src="profil${i+1}.png" alt="Profil ${i+1}"><span>${i+1}</span></button>`).join('');
-  return `<div class="admin-user admin-user-card"><img src="${escapeHtml(normalizeAvatar(u.avatar_url))}" alt=""><div class="admin-user-main"><b>@${escapeHtml(u.username||'User')}</b><div class="admin-badges">${ownerBadgeHtml(u)||'<span class="admin-none">'+(lang?'Tidak ada badge':'No badge')+'</span>'}</div></div><button class="mini-btn" data-admin-verify="${escapeHtml(u.id)}">${u.verified?(lang?'Cabut Centang':'Remove Verification'):(lang?'Centang Biru':'Verify')}</button><button class="mini-btn" data-admin-emoji="${escapeHtml(u.id)}">${u.user_badge?(lang?'Ubah Badge':'Change Badge'):(lang?'Tambah Badge':'Add Badge')}</button>${u.user_badge?`<button class="mini-btn danger" data-admin-remove-emoji="${escapeHtml(u.id)}">${lang?'Hapus Badge':'Remove Badge'}</button>`:''}<details class="admin-profile-picker"><summary class="admin-profile-picker-title">${lang?'Pilih Profil (1–25)':'Choose Profile (1–25)'}</summary><div class="admin-profile-grid">${avatars}</div></details></div>`;
+  return `<div class="admin-user admin-user-card"><img src="${escapeHtml(normalizeAvatar(u.avatar_url))}" alt=""><div class="admin-user-main"><b>@${escapeHtml(u.username||'User')}</b><div class="admin-badges">${ownerBadgeHtml(u)||'<span class="admin-none">'+(lang?'Tidak ada badge':'No badge')+'</span>'}</div><button type="button" class="mini-btn admin-profile-button" data-admin-avatar-open="${escapeHtml(u.id)}">${lang?'Ubah Foto':'Change Photo'}</button></div><button class="mini-btn" data-admin-verify="${escapeHtml(u.id)}">${u.verified?(lang?'Cabut Centang':'Remove Verification'):(lang?'Centang Biru':'Verify')}</button><button class="mini-btn" data-admin-emoji="${escapeHtml(u.id)}">${u.user_badge?(lang?'Ubah Badge':'Change Badge'):(lang?'Tambah Badge':'Add Badge')}</button>${u.user_badge?`<button class="mini-btn danger" data-admin-remove-emoji="${escapeHtml(u.id)}">${lang?'Hapus Badge':'Remove Badge'}</button>`:''}</div>`;
 }
 function adminScriptCard(s,u,lang){
   return `<div class="admin-user"><div class="admin-user-main"><b>${escapeHtml(s.filename)}</b><div>@${escapeHtml(u?.username||'User')} ${ownerBadgeHtml(u)}</div></div><button class="mini-btn danger" data-admin-delete-script="${escapeHtml(s.id)}">${lang?'Hapus dari Public':'Remove from Public'}</button></div>`;
@@ -126,7 +125,7 @@ async function loadAdminPanel(){
     }
   }
   const byId=new Map(rows.map(x=>[x.id,x]));
-  panel.innerHTML=`<div class="admin-card"><div class="admin-head"><div><h2>🛡️ Admin Panel</h2><p>${lang?'Kelola centang biru, badge emoji, dan Script Public.':'Manage verification, emoji badges, and Public Scripts.'}</p></div></div><div class="admin-section"><h3>👤 ${lang?'Akun':'Accounts'}</h3><input id="adminUserSearch" class="admin-search" type="search" placeholder="${lang?'Cari pengguna...':'Search users...'}" autocomplete="off"><div id="adminUsers" class="admin-users"></div></div><div class="admin-section"><h3>🗑️ ${lang?'Hapus Script Public':'Remove Public Scripts'}</h3><input id="adminScriptSearch" class="admin-search" type="search" placeholder="${lang?'Cari script...':'Search scripts...'}" autocomplete="off"><div id="adminPublicScripts" class="admin-users"></div></div><div id="adminError" class="error"></div></div>`;
+  panel.innerHTML=`<div class="admin-card"><div class="admin-head"><div><h2>🛡️ Admin Panel</h2><p>${lang?'Kelola centang biru, badge emoji, dan Script Public.':'Manage verification, emoji badges, and Public Scripts.'}</p></div></div><div class="admin-section"><h3>👤 ${lang?'Akun':'Accounts'}</h3><input id="adminUserSearch" class="admin-search" type="search" placeholder="${lang?'Cari pengguna...':'Search users...'}" autocomplete="off"><div id="adminUsers" class="admin-users"></div></div><div class="admin-section"><h3>🗑️ ${lang?'Hapus Script Public':'Remove Public Scripts'}</h3><input id="adminScriptSearch" class="admin-search" type="search" placeholder="${lang?'Cari script...':'Search scripts...'}" autocomplete="off"><div id="adminPublicScripts" class="admin-users"></div></div><div id="adminError" class="error"></div></div><div id="adminAvatarModal" class="admin-avatar-modal hidden" aria-hidden="true"><div class="admin-avatar-modal-box"><div class="admin-avatar-modal-head"><h3>${lang?'Pilih Profil (1–25)':'Choose Profile (1–25)'}</h3><button type="button" class="admin-avatar-modal-close" id="adminAvatarModalClose">✕</button></div><div id="adminAvatarGrid" class="admin-avatar-grid"></div></div></div>`;
 
   const userList=$('#adminUsers');
   const scriptList=$('#adminPublicScripts');
@@ -140,7 +139,16 @@ async function loadAdminPanel(){
     userList.querySelectorAll('[data-admin-verify]').forEach(b=>b.onclick=async()=>{const row=rows.find(x=>x.id===b.dataset.adminVerify);await adminSetProfile(b.dataset.adminVerify,'verified',!row?.verified);});
     userList.querySelectorAll('[data-admin-emoji]').forEach(b=>b.onclick=async()=>{const current=rows.find(x=>x.id===b.dataset.adminEmoji)?.user_badge||'';const badge=prompt(lang?'Masukkan emoji/badge:':'Enter emoji/badge:',current);if(badge===null)return;await adminSetProfile(b.dataset.adminEmoji,'user_badge',badge.trim()||null);});
     userList.querySelectorAll('[data-admin-remove-emoji]').forEach(b=>b.onclick=async()=>{await adminSetProfile(b.dataset.adminRemoveEmoji,'user_badge',null);});
-    userList.querySelectorAll('[data-admin-avatar]').forEach(b=>b.onclick=async()=>{await adminSetProfile(b.dataset.adminAvatar,'avatar_url',b.dataset.avatarValue);});
+    const modal=$('#adminAvatarModal'), grid=$('#adminAvatarGrid');
+    userList.querySelectorAll('[data-admin-avatar-open]').forEach(b=>b.onclick=()=>{
+      const userId=b.dataset.adminAvatarOpen;
+      const row=rows.find(x=>x.id===userId);
+      grid.innerHTML=Array.from({length:25},(_,i)=>{const av=`profil${i+1}.png`;return `<button type="button" class="admin-avatar-choice ${normalizeAvatar(row?.avatar_url)===av?'selected':''}" data-admin-avatar="${escapeHtml(userId)}" data-avatar-value="${av}" title="${av}"><img src="${av}" alt="Profil ${i+1}"><span>${i+1}</span></button>`;}).join('');
+      modal.classList.remove('hidden'); modal.setAttribute('aria-hidden','false');
+      grid.querySelectorAll('[data-admin-avatar]').forEach(x=>x.onclick=async()=>{await adminSetProfile(x.dataset.adminAvatar,'avatar_url',x.dataset.avatarValue);modal.classList.add('hidden');modal.setAttribute('aria-hidden','true');});
+    });
+    $('#adminAvatarModalClose').onclick=()=>{modal.classList.add('hidden');modal.setAttribute('aria-hidden','true');};
+    modal.onclick=e=>{if(e.target===modal){modal.classList.add('hidden');modal.setAttribute('aria-hidden','true');}};
   };
   const renderScripts=()=>{
     const q=(scriptSearch?.value||'').trim().toLowerCase();
