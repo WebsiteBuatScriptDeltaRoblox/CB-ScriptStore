@@ -55,12 +55,9 @@
   </main>
 
   <section class="workspace-section page-view page-hidden" id="explorePage">
-    <div class="section-title"><div><h2>🔎 <span data-i18n="exploreTitle">Public Script</span></h2><p data-i18n="exploreDesc">Cari dan pilih script publik yang tersedia.</p></div></div>
-    <div class="tool-row"><input id="publicSearch" class="tool-input" placeholder="Cari script publik..." data-i18n-placeholder="publicSearchPlaceholder"></div>
+    <div class="section-title"><div><h2>🔎 <span data-i18n="exploreTitle">Public Script</span></h2><p data-i18n="exploreDesc">Cari script publik dari pengguna yang terdaftar.</p></div></div>
+    <div class="tool-row"><input id="publicSearch" class="tool-input" placeholder="Cari script publik..." data-i18n-placeholder="publicSearchPlaceholder"><button class="btn primary" id="publishScriptBtn">⬆ <span data-i18n="publishScript">Upload</span></button></div>
     <div id="publicCards" class="public-script-grid"></div>
-
-    <div class="section-title public-own-title"><div><h2>📂 <span data-i18n="myPublicScriptsTitle">Public Script Saya</span></h2><p data-i18n="myPublicScriptsDesc">Pilih script buatanmu yang sudah diatur menjadi Public.</p></div></div>
-    <div id="myPublicCards" class="public-script-grid"></div>
   </section>
 
   <section class="workspace-section page-view page-hidden" id="workspace">
@@ -90,6 +87,16 @@
       <div class="profile-notifications"><h3>🔔 <span data-i18n="notificationsTitle">Notifikasi</span></h3><div id="notificationsList" class="notification-list"></div></div>
     </div>
   </section>
+
+  <div class="modal hidden" id="publishModal">
+    <div class="modal-box">
+      <button class="modal-close" id="publishClose">×</button>
+      <h2>⬆ <span data-i18n="publishTitle">Pilih Script untuk Dipublic</span></h2>
+      <p data-i18n="publishDesc">Pilih salah satu script milikmu untuk dijadikan Public.</p>
+      <div id="publishScriptList" class="saved-scripts"></div>
+      <div class="error" id="publishError"></div>
+    </div>
+  </div>
 
   <footer><span>✦</span> © 2026 CB ScriptStore. <span data-i18n="rights">All rights reserved.</span><a href="https://www.tiktok.com/@challo_boy" target="_blank" rel="noreferrer">♪ @challo_boy</a></footer>
 
