@@ -47,6 +47,17 @@ profile-script-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));g
 .admin-user .cb-verified{flex:0 0 auto}.admin-user .cb-user-badge{flex:0 0 auto}
 .public-profile-name .cb-verified{margin-left:5px}.public-profile-name .cb-user-badge{margin-left:4px}
 </style>
+
+<style id="cb-admin-avatar-final-fix">
+/* Compact avatar picker: no page stretching, no horizontal scroll. */
+#adminAvatarModal{position:fixed!important;inset:0!important;z-index:2147483000!important;display:flex!important;align-items:center!important;justify-content:center!important;padding:14px!important;box-sizing:border-box!important;background:rgba(0,7,20,.82)!important;backdrop-filter:blur(6px)!important}
+#adminAvatarModal.hidden{display:none!important}
+#adminAvatarModal .admin-avatar-modal-box{width:min(94vw,390px)!important;max-height:none!important;overflow:visible!important;box-sizing:border-box!important;padding:14px!important;border-radius:18px!important}
+#adminAvatarModal .admin-avatar-grid{display:grid!important;grid-template-columns:repeat(5,1fr)!important;grid-auto-rows:auto!important;gap:8px!important;max-height:none!important;overflow:visible!important;padding:2px!important}
+#adminAvatarModal .admin-avatar-choice{width:100%!important;aspect-ratio:1!important;min-width:0!important;height:auto!important}
+#adminAvatarModal .admin-avatar-choice img{display:block!important;width:100%!important;height:100%!important;aspect-ratio:1!important}
+@media(max-width:420px){#adminAvatarModal{padding:10px!important}#adminAvatarModal .admin-avatar-modal-box{width:min(94vw,360px)!important;padding:12px!important}#adminAvatarModal .admin-avatar-grid{gap:6px!important}#adminAvatarModal .admin-avatar-choice span{min-width:16px;height:16px;line-height:15px;font-size:9px}}
+</style>
 </head>
 <body>
   <div class="bg-grid"></div><div class="glow g1"></div><div class="glow g2"></div>
@@ -166,5 +177,5 @@ profile-script-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));g
   <div class="modal hidden" id="tutorialDetail"><div class="modal-box tutorial-detail-box"><button class="close" id="tutorialClose">×</button><div class="tutorial-detail-icon">📚</div><h2 id="tutorialDetailTitle"></h2><p id="tutorialDetailDesc"></p><div class="detail-block"><h3>🎯 <span data-i18n="why">Kegunaan</span></h3><p id="tutorialWhy"></p></div><div class="detail-block"><h3>📖 <span data-i18n="what">Yang dipelajari</span></h3><p id="tutorialWhat"></p></div><div class="detail-block"><h3>💻 <span data-i18n="example">Contoh kode</span></h3><pre id="tutorialCode"></pre></div><div class="detail-block"><h3>🧠 <span data-i18n="explain">Penjelasan</span></h3><p id="tutorialExplain"></p></div><div class="detail-block"><h3>🛠️ <span data-i18n="practice">Latihan</span></h3><p id="tutorialPractice" data-i18n="practiceText"></p></div><button class="btn ghost full" id="tutorialBack" data-i18n="back">Kembali ke Tutorial</button></div></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
-  <script src="app.js?v=20260921-profile10-admin"></script>
+  <script src="app.js?v=20260921-profile25-button-fix2"></script>
 </body></html>

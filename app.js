@@ -131,6 +131,10 @@ async function loadAdminPanel(){
   const scriptList=$('#adminPublicScripts');
   const userSearch=$('#adminUserSearch');
   const scriptSearch=$('#adminScriptSearch');
+  const avatarModal=$('#adminAvatarModal');
+  // Move the avatar picker to <body> so fixed positioning is never trapped
+  // inside the Admin Panel/page layout.
+  if(avatarModal && avatarModal.parentElement!==document.body) document.body.appendChild(avatarModal);
 
   const renderUsers=()=>{
     const q=(userSearch?.value||'').trim().toLowerCase();
