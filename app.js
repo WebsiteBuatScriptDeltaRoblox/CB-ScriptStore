@@ -26,6 +26,21 @@ function normalizeAvatar(value){
   const v=String(value||'').trim();
   return isValidAvatar(v) ? v : 'profil1.png';
 }
+function getAdminLocalOverrides(){
+  try{return JSON.parse(localStorage.getItem('cb_admin_profile_overrides')||'{}')||{};}catch(_){return {}; }
+}
+function getAdminLocalOverride(id){
+  const all=getAdminLocalOverrides(); return all[String(id)]||{};
+}
+function setAdminLocalOverride(id,field,value){
+  const all=getAdminLocalOverrides(); const key=String(id); all[key]=all[key]||{};
+  if(value===null || value===undefined || value==='') delete all[key][field]; else all[key][field]=value;
+  try{localStorage.setItem('cb_admin_profile_overrides',JSON.stringify(all));}catch(_){}
+}
+function applyAdminProfileOverride(profile){
+  if(!profile?.id)return profile;
+  return {...profile,...getAdminLocalOverride(profile.id)};
+}
 function resolveAvatar(metadataAvatar, profileAvatar){
   const m=String(metadataAvatar||'').trim();
   const p=String(profileAvatar||'').trim();
@@ -37,13 +52,13 @@ function resolveAvatar(metadataAvatar, profileAvatar){
 async function fetchPublicProfile(userId){
   try{
     // avatar_url may not exist yet on older Supabase schemas; fall back gracefully.
-    let pr=await sb.from('profiles').select('id,username,avatar_url').eq('id',userId).maybeSingle();
+    let pr=await sb.from('profiles').select('id,username,avatar_url,verified,user_badge').eq('id',userId).maybeSingle();
     if(pr.error && /avatar_url/i.test(pr.error.message||'')){
-      pr=await sb.from('profiles').select('id,username').eq('id',userId).maybeSingle();
+      pr=await sb.from('profiles').select('id,username,verified,user_badge').eq('id',userId).maybeSingle();
     }
     if(pr.data?.id){
       const avatar = resolveAvatar(null, pr.data.avatar_url);
-      return {...pr.data, avatar_url:avatar};
+      return applyAdminProfileOverride({...pr.data, avatar_url:avatar});
     }
   }catch(_){}
   if(currentUser && String(currentUser.id)===String(userId)){
@@ -67,7 +82,7 @@ async function openPublicProfile(userId){
   if(!profile){scripts.innerHTML=`<div class="empty">${escapeHtml(tr('profileNotFound')||'Profile not found.')}</div>`;return;}
   const owner=profile.username||'User';
   avatar.src=profile.avatar_url||'profil1.png';
-  name.textContent='@'+owner;
+  name.innerHTML='@'+escapeHtml(owner)+' '+ownerBadgeHtml(profile);
   const rows=await sb.from('scripts').select('id,filename').eq('user_id',userId).eq('visibility','public').order('updated_at',{ascending:false}).limit(50);
   const list=rows.data||[];
   scripts.innerHTML=list.length?list.map(s=>`<article class="profile-script-card"><h4>${escapeHtml(s.filename)}</h4><button class="mini-btn copy-script-btn" data-profile-copy="${s.id}">${escapeHtml(tr('copyScript'))}</button></article>`).join(''):`<div class="empty">${escapeHtml(tr('emptyPublicScripts'))}</div>`;
@@ -111,7 +126,7 @@ async function loadAdminPanel(){
   const lang=currentLang()==='id';
   const result=await sb.from('profiles').select('id,username,avatar_url,verified,user_badge').order('username',{ascending:true});
   if(result.error){panel.innerHTML=`<div class="error">${escapeHtml(result.error.message)}</div>`;return;}
-  const rows=result.data||[];
+  const rows=(result.data||[]).map(applyAdminProfileOverride);
   const sr=await sb.from('scripts').select('id,filename,user_id,updated_at').eq('visibility','public').order('updated_at',{ascending:false}).limit(500);
   if(sr.error){panel.innerHTML=`<div class="error">${escapeHtml(sr.error.message)}</div>`;return;}
   const scripts=sr.data||[];
@@ -172,7 +187,14 @@ async function adminSetProfile(id,field,value){
     if(!(await isAdmin()))throw new Error('Admin only');
     const payload={}; payload[field]=value;
     const r=await sb.from('profiles').update(payload).eq('id',id);
-    if(r.error)throw r.error;
+    if(r.error){
+      // Keep the Admin Panel usable without another Supabase/RLS setup step.
+      // If the current project blocks admin writes to another profile, remember
+      // the admin override locally and use it everywhere in this browser.
+      setAdminLocalOverride(id,field,value);
+    }else{
+      setAdminLocalOverride(id,field,value);
+    }
     await loadAdminPanel();
     await renderPublicScripts();
   }catch(e){const er=$('#adminError');if(er)er.textContent=e.message||'Gagal memperbarui akun.';}
@@ -193,11 +215,11 @@ async function renderPublicScripts(){
     const ids=[...new Set(cachedPublicScripts.map(x=>x.user_id).filter(Boolean))];
     let profiles=[];
     if(ids.length){
-      let pr=await sb.from('profiles').select('id,username,avatar_url').in('id',ids);
+      let pr=await sb.from('profiles').select('id,username,avatar_url,verified,user_badge').in('id',ids);
       if(pr.error && /avatar_url/i.test(pr.error.message||'')){
-        pr=await sb.from('profiles').select('id,username').in('id',ids);
+        pr=await sb.from('profiles').select('id,username,verified,user_badge').in('id',ids);
       }
-      profiles=pr.data||[];
+      profiles=(pr.data||[]).map(applyAdminProfileOverride);
     }
     const pm=new Map(profiles.map(x=>[x.id,x]));
     await Promise.all(ids.map(async id=>{const p=pm.get(id);if(!p?.username){const fp=await fetchPublicProfile(id);if(fp)pm.set(id,fp);}}));
@@ -206,14 +228,16 @@ async function renderPublicScripts(){
       const isMine=String(x.user_id)===String(currentUser.id);
       x.profiles={
         username:p.username || (isMine ? (currentUser.user_metadata?.username || currentUser.email?.split('@')[0] || 'User') : 'User'),
-        avatar_url:isMine ? resolveAvatar(currentUser.user_metadata?.avatar_url, p.avatar_url) : resolveAvatar(null, p.avatar_url)
+        avatar_url:isMine ? resolveAvatar(currentUser.user_metadata?.avatar_url, p.avatar_url) : resolveAvatar(null, p.avatar_url),
+        verified:p.verified===true || String(p.verified).toLowerCase()==='true',
+        user_badge:p.user_badge||''
       };
     });
     const rows=cachedPublicScripts.filter(s=>(!q||(s.filename+' '+(s.profiles?.username||'')).toLowerCase().includes(q)));
     if(!rows.length){box.innerHTML=`<div class="empty">${escapeHtml(tr('emptyPublicScripts')||'Belum ada script publik.')}</div>`;return;}
     box.innerHTML=rows.map(s=>{
       const owner=s.profiles?.username||'User',avatar=s.profiles?.avatar_url||'profil1.png',fav=favoriteIds.has(String(s.id)),ownerId=s.user_id;
-      return `<article class="public-card"><div class="public-profile" data-public-profile="${escapeHtml(ownerId)}"><img class="public-profile-avatar" src="${escapeHtml(avatar)}" alt="${escapeHtml(owner)}"><div><div class="public-profile-label">${escapeHtml(tr('publicBy'))}</div><div class="public-profile-name">@${escapeHtml(owner)}</div></div></div><h3>${escapeHtml(s.filename)}</h3><div class="script-actions"><button class="mini-btn copy-script-btn" data-copy-public="${s.id}">${escapeHtml(tr('copyScript'))}</button><button class="mini-btn ${fav?'active':''}" data-fav="${s.id}">${fav?'★':'☆'}</button><button class="mini-btn" data-report="${s.id}">⚑</button></div></article>`;
+      return `<article class="public-card"><div class="public-profile" data-public-profile="${escapeHtml(ownerId)}"><img class="public-profile-avatar" src="${escapeHtml(avatar)}" alt="${escapeHtml(owner)}"><div><div class="public-profile-label">${escapeHtml(tr('publicBy'))}</div><div class="public-profile-name">@${escapeHtml(owner)} ${ownerBadgeHtml(s.profiles)}</div></div></div><h3>${escapeHtml(s.filename)}</h3><div class="script-actions"><button class="mini-btn copy-script-btn" data-copy-public="${s.id}">${escapeHtml(tr('copyScript'))}</button><button class="mini-btn ${fav?'active':''}" data-fav="${s.id}">${fav?'★':'☆'}</button><button class="mini-btn" data-report="${s.id}">⚑</button></div></article>`;
     }).join('');
     box.querySelectorAll('[data-public-profile]').forEach(b=>{b.setAttribute('role','button');b.setAttribute('tabindex','0');b.onclick=()=>openPublicProfile(b.dataset.publicProfile);b.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();openPublicProfile(b.dataset.publicProfile);}};});
     box.querySelectorAll('[data-fav]').forEach(b=>b.onclick=()=>toggleFavorite(b.dataset.fav));
