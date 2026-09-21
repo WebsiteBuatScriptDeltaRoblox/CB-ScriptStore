@@ -76,8 +76,9 @@ async function openPublicProfile(userId){
 }
 function ownerBadgeHtml(profile){
   if(!profile)return '';
-  const verified=profile.verified?'<span class="cb-verified" title="Verified">✓</span>':'';
-  const emoji=profile.user_badge?`<span class="cb-user-badge" title="Badge">${escapeHtml(profile.user_badge)}</span>`:'';
+  const verified=profile.verified===true || String(profile.verified).toLowerCase()==='true' ? '<span class="cb-verified" title="Verified" aria-label="Verified">✓</span>' : '';
+  const badge=String(profile.user_badge||'').trim();
+  const emoji=badge?`<span class="cb-user-badge" title="Badge">${escapeHtml(badge)}</span>`:'';
   return verified+emoji;
 }
 async function isAdmin(){
@@ -186,7 +187,14 @@ async function renderPublicScripts(){
       profiles=pr.data||[];
     }
     const pm=new Map(profiles.map(x=>[x.id,x]));
-    await Promise.all(ids.map(async id=>{const p=pm.get(id);if(!p?.username || typeof p.verified==='undefined' || typeof p.user_badge==='undefined'){const fp=await fetchPublicProfile(id);if(fp)pm.set(id,{...(p||{}),...fp});}}));
+    await Promise.all(ids.map(async id=>{
+      let p=pm.get(id);
+      // Always make a direct profile read for badge state. This avoids a stale/partial
+      // profile object preventing the verified badge from appearing in Public Script.
+      const fp=await fetchPublicProfile(id);
+      if(fp) p={...(p||{}),...fp};
+      pm.set(id,p||{});
+    }));
     cachedPublicScripts.forEach(x=>{
       const p=pm.get(x.user_id)||{};
       const isMine=String(x.user_id)===String(currentUser.id);
@@ -698,7 +706,26 @@ $('#backToScripts').onclick=()=>goTo('workspace');
 $('#logoutBtn')?.addEventListener('click',logout);
 $('#profileLogoutBtn')?.addEventListener('click',logout);
 $('#profileCreateBtn')?.addEventListener('click',()=>goTo('create'));
-// Profile photos are intentionally admin-only. Changes are made from Admin Panel.
+// Restore the built-in profil1.png..profil5.png picker. The selected avatar is stored
+// on the signed-in account, so Public Script cards use the same avatar everywhere.
+document.querySelectorAll('.avatar-choice').forEach(b=>b.addEventListener('click',async()=>{
+  await syncAuth();
+  if(!currentUser){openAuth('login');return;}
+  const avatar=normalizeAvatar(b.dataset.avatar);
+  try{
+    const username=(currentUser.user_metadata?.username||currentUser.email?.split('@')[0]||'User').trim();
+    const meta={...(currentUser.user_metadata||{}),username,avatar_url:avatar};
+    const updated=await sb.auth.updateUser({data:meta});
+    if(updated.error)throw updated.error;
+    currentUser=updated.data?.user||currentUser;
+    const pr=await sb.from('profiles').upsert({id:currentUser.id,username,avatar_url:avatar},{onConflict:'id'});
+    if(pr.error && !/avatar_url/i.test(pr.error.message||'')) throw pr.error;
+    if($('#profileAvatar'))$('#profileAvatar').src=avatar;
+    document.querySelectorAll('.avatar-choice').forEach(x=>x.classList.toggle('selected',x.dataset.avatar===avatar));
+    await loadProfile();
+    await renderPublicScripts();
+  }catch(e){alert(e.message||'Gagal menyimpan foto profil.');}
+}));
 
 $('#loginBtn').onclick=()=>{closeMenu();openAuth('login');};
 $('#registerBtn').onclick=()=>{closeMenu();openAuth('register');};

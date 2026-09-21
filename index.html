@@ -128,7 +128,7 @@ profile-script-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));g
 
   <section class="profile-page page-view page-hidden" id="profilePage">
     <div class="profile-card">
-      <div class="avatar-wrap"><img src="profil1.png" alt="Profil" class="profile-avatar" id="profileAvatar"></div>
+      <div class="avatar-wrap"><img src="profil1.png" alt="Profil" class="profile-avatar" id="profileAvatar"><div class="avatar-options" id="avatarOptions"><button type="button" class="avatar-choice" data-avatar="profil1.png"><img src="profil1.png" alt="Profil 1"></button><button type="button" class="avatar-choice" data-avatar="profil2.png"><img src="profil2.png" alt="Profil 2"></button><button type="button" class="avatar-choice" data-avatar="profil3.png"><img src="profil3.png" alt="Profil 3"></button><button type="button" class="avatar-choice" data-avatar="profil4.png"><img src="profil4.png" alt="Profil 4"></button><button type="button" class="avatar-choice" data-avatar="profil5.png"><img src="profil5.png" alt="Profil 5"></button></div></div>
       <div class="profile-info"><span class="profile-label" data-i18n="profile">Profil</span><h2 id="profileUsername">Guest</h2><p id="profileEmail">Login untuk melihat profil.</p></div>
       <div class="profile-actions"><button class="btn primary" id="profileCreateBtn" data-i18n="createScript">Buat Script</button><button class="btn ghost" id="profileLogoutBtn" data-i18n="logout">Logout</button></div>
       <div class="profile-notifications"><h3>🔔 <span data-i18n="notificationsTitle">Notifikasi</span></h3><div id="notificationsList" class="notification-list"></div></div>
@@ -166,5 +166,5 @@ profile-script-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));g
   <div class="modal hidden" id="tutorialDetail"><div class="modal-box tutorial-detail-box"><button class="close" id="tutorialClose">×</button><div class="tutorial-detail-icon">📚</div><h2 id="tutorialDetailTitle"></h2><p id="tutorialDetailDesc"></p><div class="detail-block"><h3>🎯 <span data-i18n="why">Kegunaan</span></h3><p id="tutorialWhy"></p></div><div class="detail-block"><h3>📖 <span data-i18n="what">Yang dipelajari</span></h3><p id="tutorialWhat"></p></div><div class="detail-block"><h3>💻 <span data-i18n="example">Contoh kode</span></h3><pre id="tutorialCode"></pre></div><div class="detail-block"><h3>🧠 <span data-i18n="explain">Penjelasan</span></h3><p id="tutorialExplain"></p></div><div class="detail-block"><h3>🛠️ <span data-i18n="practice">Latihan</span></h3><p id="tutorialPractice" data-i18n="practiceText"></p></div><button class="btn ghost full" id="tutorialBack" data-i18n="back">Kembali ke Tutorial</button></div></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.js"></script>
-  <script src="app.js"></script>
+  <script src="app.js?v=20260921-badge-profile"></script>
 </body></html>
