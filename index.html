@@ -19,6 +19,13 @@
 @media (orientation:landscape) and (min-width:500px){.public-script-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important}.public-card{padding:14px!important}.public-card .public-meta{font-size:.78rem}.public-card .script-actions{gap:6px!important;flex-wrap:wrap}}
 @media (max-width:520px) and (orientation:portrait){.public-tools{grid-template-columns:minmax(0,1fr) auto!important}.public-tools #publishScriptBtn{min-width:96px;padding-left:12px!important;padding-right:12px!important}.public-card{padding:12px!important}.public-profile-avatar{width:34px;height:34px}.public-card .public-meta{font-size:.76rem}.public-card .script-actions{gap:5px!important}.public-card .mini-btn{padding:7px 8px!important;font-size:.78rem}}
 </style>
+
+<style id="cb-social-fix">
+.public-profile{cursor:pointer}.public-profile:hover .public-profile-name{text-decoration:underline}
+.profile-social{display:flex;gap:18px;flex-wrap:wrap;margin:14px 0}.profile-social strong{display:block;font-size:18px}.profile-social span{font-size:12px;opacity:.7}.profile-follow-btn{min-width:130px}.profile-script-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}.profile-script-card{padding:14px;border:1px solid rgba(64,128,196,.25);border-radius:14px;background:rgba(7,18,32,.72)}.profile-script-card h4{margin:0 0 10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.profile-modal-head{display:flex;align-items:center;gap:12px}.profile-modal-avatar{width:64px;height:64px;border-radius:50%;object-fit:cover;border:1px solid rgba(57,190,255,.7)}.profile-modal-name{margin:0}.profile-modal-username{opacity:.75}.profile-modal-actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}.profile-modal-scripts-title{margin-top:22px}.profile-modal .modal-box{max-height:88vh;overflow:auto}
+@media (orientation:landscape) and (min-width:500px){.profile-script-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:520px){.profile-modal-avatar{width:54px;height:54px}.profile-script-card{padding:11px}}
+</style>
 </head>
 <body>
   <div class="bg-grid"></div><div class="glow g1"></div><div class="glow g2"></div>
@@ -109,6 +116,24 @@
       <p data-i18n="publishDesc">Pilih salah satu script milikmu untuk dijadikan Public.</p>
       <div id="publishScriptList" class="saved-scripts"></div>
       <div class="error" id="publishError"></div>
+    </div>
+  </div>
+
+  
+  <div class="modal hidden profile-modal" id="publicProfileModal">
+    <div class="modal-box">
+      <button class="modal-close" id="publicProfileClose">×</button>
+      <div class="profile-modal-head">
+        <img id="publicProfileAvatar" class="profile-modal-avatar" src="profil1.png" alt="Profile">
+        <div><h2 id="publicProfileName" class="profile-modal-name">@User</h2><div id="publicProfileUsername" class="profile-modal-username"></div></div>
+      </div>
+      <div class="profile-social">
+        <div><strong id="publicFollowersCount">0</strong><span data-i18n="followers">Pengikut</span></div>
+        <div><strong id="publicFollowingCount">0</strong><span data-i18n="following">Mengikuti</span></div>
+      </div>
+      <div class="profile-modal-actions"><button class="btn primary profile-follow-btn" id="publicFollowBtn" data-i18n="follow">Ikuti</button></div>
+      <h3 class="profile-modal-scripts-title"><span data-i18n="publicProfileScripts">Script Public</span></h3>
+      <div id="publicProfileScripts" class="profile-script-grid"></div>
     </div>
   </div>
 

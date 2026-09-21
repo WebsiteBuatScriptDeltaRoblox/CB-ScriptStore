@@ -19,36 +19,80 @@ async function toggleFavorite(id){if(!currentUser){openAuth('login');return;}con
   await renderPublicScripts(); await renderScriptsIfPossible();}
 async function recordScriptView(id){try{await sb.from('script_views').insert({script_id:id,user_id:currentUser?.id||null,visitor_id:ensureVisitorId()});await sb.rpc('increment_script_view',{p_script_id:id});}catch(_){} if(currentUser){try{await sb.from('script_history').upsert({user_id:currentUser.id,script_id:id,last_viewed_at:new Date().toISOString()},{onConflict:'user_id,script_id'});}catch(_){}}}
 async function reportScript(id){if(!currentUser){openAuth('login');return;}const reason=prompt(currentLang()==='id'?'Alasan laporan:':'Report reason:');if(!reason)return;const {error}=await sb.from('script_reports').insert({script_id:id,reporter_id:currentUser.id,reason:reason.slice(0,500)});if(!error)alert(currentLang()==='id'?'Laporan terkirim.':'Report sent.');}
+async function loadFollowData(ownerIds){
+  const ids=[...new Set((ownerIds||[]).filter(Boolean).map(String))];
+  const counts=new Map(); const followed=new Set();
+  if(!ids.length)return {counts,followed};
+  try{
+    const q=await sb.from('follows').select('follower_id,following_id').in('following_id',ids);
+    (q.data||[]).forEach(r=>{const k=String(r.following_id);counts.set(k,(counts.get(k)||0)+1);if(currentUser&&String(r.follower_id)===String(currentUser.id))followed.add(k);});
+  }catch(_){}
+  return {counts,followed};
+}
+async function openPublicProfile(userId){
+  await syncAuth();
+  if(!currentUser){pendingRoute='explore';openAuth('login');return;}
+  const modal=$('#publicProfileModal');if(!modal)return;
+  modal.classList.remove('hidden');
+  const avatar=$('#publicProfileAvatar'),name=$('#publicProfileName'),uname=$('#publicProfileUsername'),fc=$('#publicFollowersCount'),fg=$('#publicFollowingCount'),btn=$('#publicFollowBtn'),scripts=$('#publicProfileScripts');
+  scripts.innerHTML=`<div class="empty">${escapeHtml(tr('loadingScripts')||'Loading...')}</div>`;
+  const pr=await sb.from('profiles').select('id,username,avatar_url').eq('id',userId).maybeSingle();
+  let profile=pr.data;
+  if(!profile){const rpc=await sb.rpc('get_public_profile',{p_user_id:userId});profile=rpc.data?.[0]||rpc.data||null;}
+  if(!profile){scripts.innerHTML=`<div class="empty">${escapeHtml(tr('profileNotFound'))}</div>`;return;}
+  const owner=profile.username||'User';
+  avatar.src=profile.avatar_url||'profil1.png';name.textContent='@'+owner;uname.textContent=owner;
+  const [followers,following,rows]=await Promise.all([
+    sb.from('follows').select('follower_id',{count:'exact',head:true}).eq('following_id',userId),
+    sb.from('follows').select('following_id',{count:'exact',head:true}).eq('follower_id',userId),
+    sb.from('scripts').select('id,filename').eq('user_id',userId).eq('visibility','public').order('updated_at',{ascending:false}).limit(50)
+  ]);
+  fc.textContent=String(followers.count||0);fg.textContent=String(following.count||0);
+  const isSelf=String(userId)===String(currentUser.id);
+  btn.style.display=isSelf?'none':'';
+  let isFollowing=false;
+  if(!isSelf){const f=await sb.from('follows').select('follower_id').eq('follower_id',currentUser.id).eq('following_id',userId).maybeSingle();isFollowing=!!f.data;}
+  btn.dataset.userId=userId;btn.dataset.following=isFollowing?'1':'0';btn.textContent=tr(isFollowing?'unfollow':'follow');
+  const list=rows.data||[];
+  scripts.innerHTML=list.length?list.map(s=>`<article class="profile-script-card"><h4>${escapeHtml(s.filename)}</h4><button class="mini-btn copy-script-btn" data-profile-copy="${s.id}">${escapeHtml(tr('copyScript'))}</button></article>`).join(''):`<div class="empty">${escapeHtml(tr('emptyPublicScripts'))}</div>`;
+  scripts.querySelectorAll('[data-profile-copy]').forEach(b=>b.onclick=async()=>{try{await navigator.clipboard.writeText(rawLoadstring(b.dataset.profileCopy));const old=b.textContent;b.textContent=tr('copiedScript');setTimeout(()=>b.textContent=old,1200);}catch(_){}});
+}
+async function toggleFollow(userId){
+  await syncAuth();if(!currentUser||String(currentUser.id)===String(userId))return;
+  const btn=$('#publicFollowBtn');const following=btn?.dataset.following==='1';
+  try{
+    if(following){const {error}=await sb.from('follows').delete().eq('follower_id',currentUser.id).eq('following_id',userId);if(error)throw error;}
+    else{const {error}=await sb.from('follows').insert({follower_id:currentUser.id,following_id:userId});if(error)throw error;}
+    await openPublicProfile(userId);
+  }catch(e){alert(e.message||'Follow error');}
+}
 async function renderPublicScripts(){
   const box=$('#publicCards'); if(!box)return;
   try{
     await syncAuth();
-    if(!currentUser){
-      box.innerHTML=`<div class="empty">${escapeHtml(tr('needLoginPublic')||'Login untuk melihat Public Script.')}</div>`;
-      return;
-    }
+    if(!currentUser){box.innerHTML=`<div class="empty">${escapeHtml(tr('needLoginPublic')||'Login untuk melihat Public Script.')}</div>`;return;}
     await loadFavorites();
     const q=$('#publicSearch')?.value.trim().toLowerCase()||'';
     let result=await sb.from('scripts').select('id,filename,code,visibility,created_at,user_id,view_count').eq('visibility','public').order('created_at',{ascending:false}).limit(100);
-    if(result.error && /view_count/i.test(result.error.message||'')){
-      result=await sb.from('scripts').select('id,filename,code,visibility,created_at,user_id').eq('visibility','public').order('created_at',{ascending:false}).limit(100);
-    }
+    if(result.error && /view_count/i.test(result.error.message||'')) result=await sb.from('scripts').select('id,filename,code,visibility,created_at,user_id').eq('visibility','public').order('created_at',{ascending:false}).limit(100);
     if(result.error)throw result.error;
     cachedPublicScripts=result.data||[];
     const ids=[...new Set(cachedPublicScripts.map(x=>x.user_id).filter(Boolean))];
     let profiles=[];
     if(ids.length){const pr=await sb.from('profiles').select('id,username,avatar_url').in('id',ids);profiles=pr.data||[];}
-    const pm=new Map(profiles.map(x=>[x.id,{username:x.username,avatar_url:x.avatar_url}]));
-    cachedPublicScripts.forEach(x=>{ const fallbackUser=(currentUser&&String(x.user_id)===String(currentUser.id))?currentUser:null; x.profiles=pm.get(x.user_id)||{username:fallbackUser?.user_metadata?.username||'User',avatar_url:fallbackUser?.user_metadata?.avatar_url||'profil1.png'}; });
+    const pm=new Map(profiles.map(x=>[x.id,x]));
+    cachedPublicScripts.forEach(x=>{const p=pm.get(x.user_id)||{};x.profiles={username:p.username||'User',avatar_url:p.avatar_url||'profil1.png'};});
+    const fd=await loadFollowData(ids);
     const rows=cachedPublicScripts.filter(s=>(!q||(s.filename+' '+(s.profiles?.username||'')).toLowerCase().includes(q)));
     if(!rows.length){box.innerHTML=`<div class="empty">${escapeHtml(tr('emptyPublicScripts')||'Belum ada script publik.')}</div>`;return;}
     box.innerHTML=rows.map(s=>{
-      const owner=s.profiles?.username||'Unknown'; const avatar=s.profiles?.avatar_url||'logo.png'; const fav=favoriteIds.has(String(s.id));
-      return `<article class="public-card"><div class="public-profile"><img class="public-profile-avatar" src="${escapeHtml(avatar)}" alt="${escapeHtml(owner)}"><div><div class="public-profile-label">${escapeHtml(tr('publicBy'))}</div><div class="public-profile-name">@${escapeHtml(owner)}</div></div></div><h3>${escapeHtml(s.filename)}</h3><div class="script-actions"><button class="mini-btn copy-script-btn" data-copy-public="${s.id}">${escapeHtml(tr('copyScript'))}</button><button class="mini-btn ${fav?'active':''}" data-fav="${s.id}">${fav?'★':'☆'}</button><button class="mini-btn" data-report="${s.id}">⚑</button></div></article>`;
+      const owner=s.profiles?.username||'User',avatar=s.profiles?.avatar_url||'profil1.png',fav=favoriteIds.has(String(s.id)),ownerId=s.user_id;
+      return `<article class="public-card"><div class="public-profile" data-public-profile="${escapeHtml(ownerId)}"><img class="public-profile-avatar" src="${escapeHtml(avatar)}" alt="${escapeHtml(owner)}"><div><div class="public-profile-label">${escapeHtml(tr('publicBy'))}</div><div class="public-profile-name">@${escapeHtml(owner)}</div></div></div><h3>${escapeHtml(s.filename)}</h3><div class="script-actions"><button class="mini-btn copy-script-btn" data-copy-public="${s.id}">${escapeHtml(tr('copyScript'))}</button><button class="mini-btn ${fav?'active':''}" data-fav="${s.id}">${fav?'★':'☆'}</button><button class="mini-btn" data-report="${s.id}">⚑</button></div></article>`;
     }).join('');
+    box.querySelectorAll('[data-public-profile]').forEach(b=>b.onclick=()=>openPublicProfile(b.dataset.publicProfile));
     box.querySelectorAll('[data-fav]').forEach(b=>b.onclick=()=>toggleFavorite(b.dataset.fav));
     box.querySelectorAll('[data-report]').forEach(b=>b.onclick=()=>reportScript(b.dataset.report));
-    box.querySelectorAll('[data-copy-public]').forEach(b=>b.onclick=async()=>{try{await navigator.clipboard.writeText(rawLoadstring(b.dataset.copyPublic));const old=b.textContent;b.textContent=tr('copiedScript')||'Copied';setTimeout(()=>b.textContent=old,1200);}catch(_){}});
+    box.querySelectorAll('[data-copy-public]').forEach(b=>b.onclick=async()=>{try{await navigator.clipboard.writeText(rawLoadstring(b.dataset.copyPublic));const old=b.textContent;b.textContent=tr('copiedScript');setTimeout(()=>b.textContent=old,1200);}catch(_){}});
   }catch(e){box.innerHTML=`<div class="empty">${escapeHtml(e.message||'Gagal memuat script publik.')}</div>`;}
 }
 
@@ -279,7 +323,21 @@ function detectLanguage(){
 }
 const myScriptsHomeByLang={id:'Script Saya',en:'My Scripts',es:'Mis Scripts',pt:'Meus Scripts',fil:'Aking Scripts',tr:'Scriptlerim',fr:'Mes scripts',de:'Meine Skripte',ja:'自分のスクリプト',ko:'내 스크립트',zh:'我的脚本','zh-TW':'我的腳本',ru:'Мои скрипты',hi:'मेरे स्क्रिप्ट',ar:'برامجي النصية',vi:'Script của tôi',th:'สคริปต์ของฉัน',pl:'Moje skrypty',it:'I miei script','pt-PT':'Os meus scripts'};
 for(const [lang,label] of Object.entries(myScriptsHomeByLang)){if(ui[lang])ui[lang].myScriptsButton=label;}
-function tr(k){ const d=ui[currentLang()]||ui.en||{}; const f={navScript:'Script',navWorkspace:'Script',myScripts:'My Scripts',myScriptsButton:'Lihat Script Saya',scriptCreator:'Pembuat script',websiteLink:'Link website',viewScript:'Script',exploreTitle:'Jelajahi Script',exploreDesc:'Cari script publik dan simpan favoritmu.',searchPlaceholder:'Cari script...',publicSearchPlaceholder:'Cari script publik...',publishScript:'Upload',publishTitle:'Pilih Script untuk Dipublic',publishDesc:'Pilih salah satu script milikmu untuk dijadikan Public.',needLoginPublic:'Login untuk melihat Public Script.',noScriptsToPublish:'Belum ada script. Buat script terlebih dahulu.',publishNow:'Jadikan Public',alreadyPublic:'Sudah Public',published:'Script berhasil dibuat Public.',loadingScripts:'Memuat script...',historyTitle:'Riwayat',notificationsTitle:'Notifikasi',emptyPublicScripts:'Belum ada script publik.',copyRaw:'Salin Link Raw',myPublicScriptsTitle:'Public Script Saya',myPublicScriptsDesc:'Pilih script buatanmu yang sudah diatur menjadi Public.',selectScript:'Pilih Script',publicBy:'Dibuat oleh'}; return d[k] ?? ui.id?.[k] ?? f[k] ?? k; }
+function tr(k){ const d=ui[currentLang()]||ui.en||{}; const f={navScript:'Script',navWorkspace:'Script',myScripts:'My Scripts',myScriptsButton:'Lihat Script Saya',scriptCreator:'Pembuat script',websiteLink:'Link website',viewScript:'Script',exploreTitle:'Jelajahi Script',exploreDesc:'Cari script publik dan simpan favoritmu.',searchPlaceholder:'Cari script...',publicSearchPlaceholder:'Cari script publik...',publishScript:'Upload',publishTitle:'Pilih Script untuk Dipublic',publishDesc:'Pilih salah satu script milikmu untuk dijadikan Public.',needLoginPublic:'Login untuk melihat Public Script.',noScriptsToPublish:'Belum ada script. Buat script terlebih dahulu.',publishNow:'Jadikan Public',alreadyPublic:'Sudah Public',published:'Script berhasil dibuat Public.',loadingScripts:'Memuat script...',historyTitle:'Riwayat',notificationsTitle:'Notifikasi',emptyPublicScripts:'Belum ada script publik.',copyRaw:'Salin Link Raw',followers:'Pengikut',following:'Mengikuti',follow:'Ikuti',unfollow:'Batal Ikuti',publicProfileScripts:'Script Public',profileNotFound:'Profil tidak ditemukan.',copyScript:'Salin Script',copiedScript:'Tersalin',myPublicScriptsTitle:'Public Script Saya',myPublicScriptsDesc:'Pilih script buatanmu yang sudah diatur menjadi Public.',selectScript:'Pilih Script',publicBy:'Dibuat oleh'}; return d[k] ?? ui.id?.[k] ?? f[k] ?? k; }
+const socialI18n={
+  id:{followers:'Pengikut',following:'Mengikuti',follow:'Ikuti',unfollow:'Batal Ikuti',publicProfileScripts:'Script Public',profileNotFound:'Profil tidak ditemukan.',copyScript:'Salin Script',copiedScript:'Tersalin'},
+  en:{followers:'Followers',following:'Following',follow:'Follow',unfollow:'Unfollow',publicProfileScripts:'Public Scripts',profileNotFound:'Profile not found.',copyScript:'Copy Script',copiedScript:'Copied'},
+  es:{followers:'Seguidores',following:'Siguiendo',follow:'Seguir',unfollow:'Dejar de seguir',publicProfileScripts:'Scripts públicos',profileNotFound:'Perfil no encontrado.',copyScript:'Copiar script',copiedScript:'Copiado'},
+  pt:{followers:'Seguidores',following:'Seguindo',follow:'Seguir',unfollow:'Deixar de seguir',publicProfileScripts:'Scripts públicos',profileNotFound:'Perfil não encontrado.',copyScript:'Copiar script',copiedScript:'Copiado'},
+  fr:{followers:'Abonnés',following:'Abonnements',follow:'Suivre',unfollow:'Ne plus suivre',publicProfileScripts:'Scripts publics',profileNotFound:'Profil introuvable.',copyScript:'Copier le script',copiedScript:'Copié'},
+  de:{followers:'Follower',following:'Folge ich',follow:'Folgen',unfollow:'Nicht mehr folgen',publicProfileScripts:'Öffentliche Skripte',profileNotFound:'Profil nicht gefunden.',copyScript:'Skript kopieren',copiedScript:'Kopiert'},
+  ja:{followers:'フォロワー',following:'フォロー中',follow:'フォロー',unfollow:'フォロー解除',publicProfileScripts:'公開スクリプト',profileNotFound:'プロフィールが見つかりません。',copyScript:'スクリプトをコピー',copiedScript:'コピーしました'},
+  ko:{followers:'팔로워',following:'팔로잉',follow:'팔로우',unfollow:'팔로우 취소',publicProfileScripts:'공개 스크립트',profileNotFound:'프로필을 찾을 수 없습니다.',copyScript:'스크립트 복사',copiedScript:'복사됨'},
+  zh:{followers:'粉丝',following:'关注',follow:'关注',unfollow:'取消关注',publicProfileScripts:'公开脚本',profileNotFound:'找不到个人资料。',copyScript:'复制脚本',copiedScript:'已复制'},
+  'zh-TW':{followers:'粉絲',following:'追蹤中',follow:'追蹤',unfollow:'取消追蹤',publicProfileScripts:'公開腳本',profileNotFound:'找不到個人資料。',copyScript:'複製腳本',copiedScript:'已複製'}
+};
+for(const [lang,vals] of Object.entries(socialI18n)){if(ui[lang])Object.assign(ui[lang],vals);}
+
 function visibilityLabel(v){return v==='public'?tr('public'):v==='private'?tr('private'):v||'';}
 function tutorialData(){ return tutorialText[currentLang()] || fallbackTutorial; }
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));}
@@ -504,7 +562,7 @@ $('#closeModal').onclick=()=>{$('#modal').classList.add('hidden');pendingRoute=n
 $('#switchMode').onclick=()=>openAuth(mode==='login'?'register':'login');
 $('#authForm').onsubmit=submitAuth;
 $('#browseBtn').onclick=()=>goTo('scripts');
-$('#scriptSearch')?.addEventListener('input',renderScriptsIfPossible);$('#publicSearch')?.addEventListener('input',renderPublicScripts);$('#publishScriptBtn')?.addEventListener('click',openPublishModal);$('#publishClose')?.addEventListener('click',()=>$('#publishModal')?.classList.add('hidden'));
+$('#scriptSearch')?.addEventListener('input',renderScriptsIfPossible);$('#publicSearch')?.addEventListener('input',renderPublicScripts);$('#publishScriptBtn')?.addEventListener('click',openPublishModal);$('#publishClose')?.addEventListener('click',()=>$('#publishModal')?.classList.add('hidden'));$('#publicProfileClose')?.addEventListener('click',()=>$('#publicProfileModal')?.classList.add('hidden'));$('#publicFollowBtn')?.addEventListener('click',()=>toggleFollow($('#publicFollowBtn').dataset.userId));
 $('#viewAll').onclick=()=>goTo('scripts');
 $('#tutorialMenu').addEventListener('click',e=>{const b=e.target.closest('.tutorial-btn');if(b)openTutorial(Number(b.dataset.tutorial));});
 document.querySelectorAll('[data-feature-route]').forEach(b=>b.addEventListener('click',()=>goTo(b.dataset.featureRoute)));
