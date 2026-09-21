@@ -20,17 +20,20 @@ async function toggleFavorite(id){if(!currentUser){openAuth('login');return;}con
 async function recordScriptView(id){try{await sb.from('script_views').insert({script_id:id,user_id:currentUser?.id||null,visitor_id:ensureVisitorId()});await sb.rpc('increment_script_view',{p_script_id:id});}catch(_){} if(currentUser){try{await sb.from('script_history').upsert({user_id:currentUser.id,script_id:id,last_viewed_at:new Date().toISOString()},{onConflict:'user_id,script_id'});}catch(_){}}}
 async function reportScript(id){if(!currentUser){openAuth('login');return;}const reason=prompt(currentLang()==='id'?'Alasan laporan:':'Report reason:');if(!reason)return;const {error}=await sb.from('script_reports').insert({script_id:id,reporter_id:currentUser.id,reason:reason.slice(0,500)});if(!error)alert(currentLang()==='id'?'Laporan terkirim.':'Report sent.');}
 function isValidAvatar(value){
-  return /^profil[1-5]\.png$/.test(String(value||'').trim());
+  const v=String(value||'').trim();
+  return /^profil[1-5]\.png$/.test(v) || /^https?:\/\//i.test(v);
 }
 function normalizeAvatar(value){
   const v=String(value||'').trim();
   return isValidAvatar(v) ? v : 'profil1.png';
 }
 function resolveAvatar(metadataAvatar, profileAvatar){
+  // The Supabase profiles row is authoritative. This lets an admin-set gallery
+  // image survive even when the user's older auth metadata still contains profil1.png.
   const m=String(metadataAvatar||'').trim();
   const p=String(profileAvatar||'').trim();
-  if(isValidAvatar(m)) return m;
   if(isValidAvatar(p)) return p;
+  if(isValidAvatar(m)) return m;
   return 'profil1.png';
 }
 
@@ -97,10 +100,25 @@ function sanitizeScriptFilename(filename){
   return containsInappropriateWord(filename)?'the Sensor':filename;
 }
 function adminUserCard(u,lang){
-  return `<div class="admin-user"><img src="${escapeHtml(normalizeAvatar(u.avatar_url))}" alt=""><div class="admin-user-main"><b>@${escapeHtml(u.username||'User')}</b><div class="admin-badges">${ownerBadgeHtml(u)||'<span class="admin-none">'+(lang?'Tidak ada badge':'No badge')+'</span>'}</div></div><button class="mini-btn" data-admin-verify="${escapeHtml(u.id)}">${u.verified?(lang?'Cabut Centang':'Remove Verification'):(lang?'Centang Biru':'Verify')}</button><button class="mini-btn" data-admin-emoji="${escapeHtml(u.id)}">${u.user_badge?(lang?'Ubah Badge':'Change Badge'):(lang?'Tambah Badge':'Add Badge')}</button>${u.user_badge?`<button class="mini-btn danger" data-admin-remove-emoji="${escapeHtml(u.id)}">${lang?'Hapus Badge':'Remove Badge'}</button>`:''}</div>`;
+  const inputId='adminAvatarInput_'+String(u.id).replace(/[^a-zA-Z0-9_-]/g,'');
+  return `<div class="admin-user"><img src="${escapeHtml(normalizeAvatar(u.avatar_url))}" alt=""><div class="admin-user-main"><b>@${escapeHtml(u.username||'User')}</b><div class="admin-badges">${ownerBadgeHtml(u)||'<span class="admin-none">'+(lang?'Tidak ada badge':'No badge')+'</span>'}</div></div><input id="${inputId}" class="admin-avatar-input" type="file" accept="image/*" data-admin-avatar-input="${escapeHtml(u.id)}"><button class="mini-btn" data-admin-avatar="${escapeHtml(u.id)}" data-input-id="${inputId}">${lang?'Ubah Foto':'Change Photo'}</button><button class="mini-btn" data-admin-verify="${escapeHtml(u.id)}">${u.verified?(lang?'Cabut Centang':'Remove Verification'):(lang?'Centang Biru':'Verify')}</button><button class="mini-btn" data-admin-emoji="${escapeHtml(u.id)}">${u.user_badge?(lang?'Ubah Badge':'Change Badge'):(lang?'Tambah Badge':'Add Badge')}</button>${u.user_badge?`<button class="mini-btn danger" data-admin-remove-emoji="${escapeHtml(u.id)}">${lang?'Hapus Badge':'Remove Badge'}</button>`:''}</div>`;
 }
 function adminScriptCard(s,u,lang){
   return `<div class="admin-user"><div class="admin-user-main"><b>${escapeHtml(s.filename)}</b><div>@${escapeHtml(u?.username||'User')} ${ownerBadgeHtml(u)}</div></div><button class="mini-btn danger" data-admin-delete-script="${escapeHtml(s.id)}">${lang?'Hapus dari Public':'Remove from Public'}</button></div>`;
+}
+async function adminUploadAvatar(userId,file){
+  if(!file)return;
+  if(!file.type || !file.type.startsWith('image/')) throw new Error(currentLang()==='id'?'Pilih file gambar.':'Please choose an image file.');
+  if(file.size>5*1024*1024) throw new Error(currentLang()==='id'?'Ukuran foto maksimal 5 MB.':'Maximum image size is 5 MB.');
+  const ext=(file.name.split('.').pop()||'jpg').toLowerCase().replace(/[^a-z0-9]/g,'')||'jpg';
+  const path=`${userId}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
+  const upload=await sb.storage.from('profile-images').upload(path,file,{contentType:file.type,upsert:false});
+  if(upload.error)throw upload.error;
+  const pub=sb.storage.from('profile-images').getPublicUrl(path);
+  const avatarUrl=pub.data?.publicUrl;
+  if(!avatarUrl)throw new Error('Gagal mendapatkan URL foto.');
+  const upd=await sb.from('profiles').update({avatar_url:avatarUrl}).eq('id',userId);
+  if(upd.error)throw upd.error;
 }
 async function loadAdminPanel(){
   const panel=$('#adminPanel');
@@ -137,6 +155,18 @@ async function loadAdminPanel(){
     userList.querySelectorAll('[data-admin-verify]').forEach(b=>b.onclick=async()=>{const row=rows.find(x=>x.id===b.dataset.adminVerify);await adminSetProfile(b.dataset.adminVerify,'verified',!row?.verified);});
     userList.querySelectorAll('[data-admin-emoji]').forEach(b=>b.onclick=async()=>{const current=rows.find(x=>x.id===b.dataset.adminEmoji)?.user_badge||'';const badge=prompt(lang?'Masukkan emoji/badge:':'Enter emoji/badge:',current);if(badge===null)return;await adminSetProfile(b.dataset.adminEmoji,'user_badge',badge.trim()||null);});
     userList.querySelectorAll('[data-admin-remove-emoji]').forEach(b=>b.onclick=async()=>{await adminSetProfile(b.dataset.adminRemoveEmoji,'user_badge',null);});
+    userList.querySelectorAll('[data-admin-avatar]').forEach(b=>b.onclick=()=>{const input=document.getElementById(b.dataset.inputId);input?.click();});
+    userList.querySelectorAll('[data-admin-avatar-input]').forEach(input=>input.onchange=async()=>{
+      const file=input.files?.[0]; if(!file)return;
+      try{
+        await adminUploadAvatar(input.dataset.adminAvatarInput,file);
+        await loadAdminPanel();
+        await renderPublicScripts();
+        await loadProfile();
+      }catch(e){
+        const er=$('#adminError'); if(er)er.textContent=e.message||'Gagal mengubah foto profil.';
+      }finally{input.value='';}
+    });
   };
   const renderScripts=()=>{
     const q=(scriptSearch?.value||'').trim().toLowerCase();
@@ -184,7 +214,7 @@ async function renderPublicScripts(){
       profiles=pr.data||[];
     }
     const pm=new Map(profiles.map(x=>[x.id,x]));
-    await Promise.all(ids.map(async id=>{const p=pm.get(id);if(!p?.username){const fp=await fetchPublicProfile(id);if(fp)pm.set(id,fp);}}));
+    await Promise.all(ids.map(async id=>{const p=pm.get(id);if(!p?.username || typeof p.verified==='undefined' || typeof p.user_badge==='undefined'){const fp=await fetchPublicProfile(id);if(fp)pm.set(id,{...(p||{}),...fp});}}));
     cachedPublicScripts.forEach(x=>{
       const p=pm.get(x.user_id)||{};
       const isMine=String(x.user_id)===String(currentUser.id);
@@ -693,30 +723,8 @@ $('#backToScripts').onclick=()=>goTo('workspace');
 $('#logoutBtn')?.addEventListener('click',logout);
 $('#profileLogoutBtn')?.addEventListener('click',logout);
 $('#profileCreateBtn')?.addEventListener('click',()=>goTo('create'));
-document.querySelectorAll('.avatar-choice').forEach(b=>b.addEventListener('click',async()=>{
-  await syncAuth();
-  if(!currentUser){openAuth('login');return;}
-  const avatar=normalizeAvatar(b.dataset.avatar);
-  try{
-    const username=(currentUser.user_metadata?.username||currentUser.email?.split('@')[0]||'User').trim();
-    // Save to the account row first so every device sees the same avatar.
-    // Always save the selected avatar to the authenticated user's metadata first.
-    // This works even before the profiles.avatar_url column has been added.
-    const {data,error}=await sb.auth.updateUser({data:{...(currentUser.user_metadata||{}),username,avatar_url:avatar}});
-    if(error)throw error;
-    // Also mirror it to profiles when the column exists. If the column is missing,
-    // do not break the profile picker; the SQL below can be run to enable per-user
-    // avatars for public cards on every device.
-    let pr=await sb.from('profiles').upsert({id:currentUser.id,username,avatar_url:avatar},{onConflict:'id'});
-    if(pr.error && !/avatar_url/i.test(pr.error.message||'')) throw pr.error;
-    if(data?.user)currentUser=data.user;
-    if($('#profileAvatar'))$('#profileAvatar').src=avatar;
-    document.querySelectorAll('.avatar-choice').forEach(x=>x.classList.toggle('selected',x===b));
-    await loadProfile();
-    await renderPublicScripts();
-    await renderMyPublicScripts();
-  }catch(e){console.error(e);alert(e.message||'Gagal menyimpan foto profil.');}
-}));
+// Profile photos are intentionally admin-only. Changes are made from Admin Panel.
+
 $('#loginBtn').onclick=()=>{closeMenu();openAuth('login');};
 $('#registerBtn').onclick=()=>{closeMenu();openAuth('register');};
 $('#menuLogoutBtn').onclick=()=>{closeMenu();logout();};

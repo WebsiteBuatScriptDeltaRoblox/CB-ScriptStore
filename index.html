@@ -42,6 +42,11 @@ profile-script-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));g
 .admin-head h2{margin:0}.admin-head p{opacity:.7;margin:5px 0 16px}.admin-section{margin-top:18px}.admin-search{width:100%;box-sizing:border-box;margin:0 0 10px;padding:11px 13px;border-radius:12px;border:1px solid rgba(45,157,255,.35);background:rgba(3,12,25,.72);color:#dff4ff;outline:none}.admin-search:focus{border-color:rgba(45,157,255,.8);box-shadow:0 0 0 2px rgba(45,157,255,.12)}.admin-section h3{margin-bottom:10px}.admin-users{display:grid;gap:9px}.admin-user{display:flex;align-items:center;gap:9px;padding:10px;border:1px solid rgba(80,130,180,.2);border-radius:12px;background:rgba(10,24,42,.65)}.admin-user img{width:38px;height:38px;border-radius:50%;object-fit:cover}.admin-user-main{flex:1;min-width:0}.admin-user-main b,.admin-user-main div{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.admin-none{opacity:.5;font-size:.8rem}.admin-user .mini-btn{white-space:nowrap}
 @media(max-width:600px){.admin-user{flex-wrap:wrap}.admin-user-main{min-width:calc(100% - 50px)}.admin-user .mini-btn{flex:1}}
 </style>
+
+<style id="cb-admin-avatar-style">
+.admin-avatar-input{display:none}.admin-avatar-note{font-size:.78rem;opacity:.7;margin-top:8px;text-align:center}.admin-user .cb-verified{flex:0 0 auto}.admin-user .cb-user-badge{flex:0 0 auto}
+.public-profile-name .cb-verified{margin-left:5px}.public-profile-name .cb-user-badge{margin-left:4px}
+</style>
 </head>
 <body>
   <div class="bg-grid"></div><div class="glow g1"></div><div class="glow g2"></div>
@@ -123,7 +128,7 @@ profile-script-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));g
 
   <section class="profile-page page-view page-hidden" id="profilePage">
     <div class="profile-card">
-      <div class="avatar-wrap"><img src="profil1.png" alt="Profil" class="profile-avatar" id="profileAvatar"><div class="avatar-options" id="avatarOptions"><button type="button" class="avatar-choice" data-avatar="profil1.png"><img src="profil1.png" alt="Profil 1"></button><button type="button" class="avatar-choice" data-avatar="profil2.png"><img src="profil2.png" alt="Profil 2"></button><button type="button" class="avatar-choice" data-avatar="profil3.png"><img src="profil3.png" alt="Profil 3"></button><button type="button" class="avatar-choice" data-avatar="profil4.png"><img src="profil4.png" alt="Profil 4"></button><button type="button" class="avatar-choice" data-avatar="profil5.png"><img src="profil5.png" alt="Profil 5"></button></div></div>
+      <div class="avatar-wrap"><img src="profil1.png" alt="Profil" class="profile-avatar" id="profileAvatar"><div class="avatar-options admin-avatar-note" id="avatarOptions">Foto profil hanya dapat diubah melalui Admin Panel.</div></div>
       <div class="profile-info"><span class="profile-label" data-i18n="profile">Profil</span><h2 id="profileUsername">Guest</h2><p id="profileEmail">Login untuk melihat profil.</p></div>
       <div class="profile-actions"><button class="btn primary" id="profileCreateBtn" data-i18n="createScript">Buat Script</button><button class="btn ghost" id="profileLogoutBtn" data-i18n="logout">Logout</button></div>
       <div class="profile-notifications"><h3>🔔 <span data-i18n="notificationsTitle">Notifikasi</span></h3><div id="notificationsList" class="notification-list"></div></div>
