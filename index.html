@@ -21,7 +21,7 @@
     <div class="side-menu-head"><div class="side-user"><img src="logo.png" alt=""><div><strong id="menuUsername">Guest</strong><small id="menuStatus">Not logged in</small></div></div><button class="menu-close" id="menuClose">×</button></div>
     <nav class="side-nav">
       <a href="#home" data-menu-route="home">⌂ <span data-i18n="navHome">Beranda</span></a>
-      <a href="#explore" data-menu-route="explore">⌕ <span data-i18n="navWorkspace">Script</span></a>
+      <a href="#explore" data-menu-route="explore">⌕ <span data-i18n="navScript">Script</span></a>
       <a href="#workspace" data-menu-route="workspace">▣ <span data-i18n="myScripts">Script Saya</span></a>
       <a href="#create" data-menu-route="create">✎ <span data-i18n="createScript">Buat Script</span></a>
       <a href="#scripts" data-menu-route="scripts">◉ <span data-i18n="navScripts">Tutorial</span></a>
@@ -55,9 +55,12 @@
   </main>
 
   <section class="workspace-section page-view page-hidden" id="explorePage">
-    <div class="section-title"><div><h2>🔎 <span data-i18n="exploreTitle">Jelajahi Script</span></h2><p data-i18n="exploreDesc">Cari script publik dan simpan favoritmu.</p></div></div>
+    <div class="section-title"><div><h2>🔎 <span data-i18n="exploreTitle">Public Script</span></h2><p data-i18n="exploreDesc">Cari dan pilih script publik yang tersedia.</p></div></div>
     <div class="tool-row"><input id="publicSearch" class="tool-input" placeholder="Cari script publik..." data-i18n-placeholder="publicSearchPlaceholder"></div>
     <div id="publicCards" class="public-script-grid"></div>
+
+    <div class="section-title public-own-title"><div><h2>📂 <span data-i18n="myPublicScriptsTitle">Public Script Saya</span></h2><p data-i18n="myPublicScriptsDesc">Pilih script buatanmu yang sudah diatur menjadi Public.</p></div></div>
+    <div id="myPublicCards" class="public-script-grid"></div>
   </section>
 
   <section class="workspace-section page-view page-hidden" id="workspace">

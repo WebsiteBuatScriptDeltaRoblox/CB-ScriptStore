@@ -15,7 +15,7 @@ function trx(key,fallback){return tr(key)||fallback||key;}
 function rawUrl(id){return `${RAW_ENDPOINT}?id=${encodeURIComponent(id)}&lang=${encodeURIComponent(currentLang())}`;}
 async function loadFavorites(){if(!currentUser){favoriteIds=new Set();return;}const {data}=await sb.from('script_favorites').select('script_id').eq('user_id',currentUser.id);favoriteIds=new Set((data||[]).map(x=>String(x.script_id)));}
 async function toggleFavorite(id){if(!currentUser){openAuth('login');return;}const sid=String(id);if(favoriteIds.has(sid)){await sb.from('script_favorites').delete().eq('user_id',currentUser.id).eq('script_id',id);favoriteIds.delete(sid);}else{await sb.from('script_favorites').insert({user_id:currentUser.id,script_id:id});favoriteIds.add(sid);}
-  await renderPublicScripts(); await renderScriptsIfPossible();}
+  await renderPublicScripts(); await renderMyPublicScripts(); await renderScriptsIfPossible();}
 async function recordScriptView(id){try{await sb.from('script_views').insert({script_id:id,user_id:currentUser?.id||null,visitor_id:ensureVisitorId()});await sb.rpc('increment_script_view',{p_script_id:id});}catch(_){} if(currentUser){try{await sb.from('script_history').upsert({user_id:currentUser.id,script_id:id,last_viewed_at:new Date().toISOString()},{onConflict:'user_id,script_id'});}catch(_){}}}
 async function reportScript(id){if(!currentUser){openAuth('login');return;}const reason=prompt(currentLang()==='id'?'Alasan laporan:':'Report reason:');if(!reason)return;const {error}=await sb.from('script_reports').insert({script_id:id,reporter_id:currentUser.id,reason:reason.slice(0,500)});if(!error)alert(currentLang()==='id'?'Laporan terkirim.':'Report sent.');}
 async function renderPublicScripts(){const box=$('#publicCards');if(!box)return;try{await syncAuth();await loadFavorites();let q=$('#publicSearch')?.value.trim().toLowerCase()||'';let result=await sb.from('scripts').select('id,filename,code,visibility,created_at,user_id,view_count').eq('visibility','public').order('created_at',{ascending:false}).limit(100);if(result.error && /view_count/i.test(result.error.message||'')){result=await sb.from('scripts').select('id,filename,code,visibility,created_at,user_id').eq('visibility','public').order('created_at',{ascending:false}).limit(100);}if(result.error)throw result.error;let data=result.data;cachedPublicScripts=data||[];const ids=[...new Set(cachedPublicScripts.map(x=>x.user_id).filter(Boolean))];let profiles=[];if(ids.length){const pr=await sb.from('profiles').select('id,username').in('id',ids);profiles=pr.data||[];}const pm=new Map(profiles.map(x=>[x.id,x.username]));cachedPublicScripts.forEach(x=>x.profiles={username:pm.get(x.user_id)||'Unknown'});let rows=cachedPublicScripts.filter(s=>(!q||(s.filename+' '+(s.profiles?.username||'')).toLowerCase().includes(q)));if(!rows.length){box.innerHTML=`<div class="empty">${escapeHtml(tr('emptyPublicScripts')||'Belum ada script publik.')}</div>`;return;}box.innerHTML=rows.map(s=>{const owner=s.profiles?.username||'Unknown';const fav=favoriteIds.has(String(s.id));return `<article class="public-card"><h3>${escapeHtml(s.filename)}</h3><div class="public-meta">${escapeHtml(tr('scriptCreator'))}: @${escapeHtml(owner)}</div><div class="public-meta">${escapeHtml(tr('websiteLink'))}: ${escapeHtml(SITE_URL)}</div><div class="public-meta">👁 ${Number(s.view_count||0)}</div><div class="script-actions"><a class="raw mini-btn" href="${rawUrl(s.id)}" target="_blank" rel="noreferrer">${escapeHtml(tr('viewScript'))}</a><button class="mini-btn" data-copy-public="${s.id}">${escapeHtml(tr('copyRaw'))}</button><button class="mini-btn ${fav?'active':''}" data-fav="${s.id}">${fav?'★':'☆'}</button><button class="mini-btn" data-report="${s.id}">⚑</button></div></article>`}).join('');box.querySelectorAll('[data-fav]').forEach(b=>b.onclick=()=>toggleFavorite(b.dataset.fav));box.querySelectorAll('[data-report]').forEach(b=>b.onclick=()=>reportScript(b.dataset.report));box.querySelectorAll('[data-copy-public]').forEach(b=>b.onclick=()=>navigator.clipboard.writeText(rawUrl(b.dataset.copyPublic)));box.querySelectorAll('a.raw').forEach(a=>a.addEventListener('click',()=>recordScriptView(a.href.split('id=')[1])));}catch(e){box.innerHTML=`<div class="empty">${escapeHtml(e.message||'Gagal memuat script publik.')}</div>`;}}
@@ -148,8 +148,8 @@ const extraByLang={
  'pt-PT':['Os meus Scripts','Cria, edita, guarda e abre links Raw dos teus scripts.','Terminar sessão','Nome do script','Privado','Público','Guardar Script','Novo Script','Scripts guardados','novo-script.lua','Script guardado.','Script atualizado.','Script eliminado.','Eliminar este script?','Inicia sessão para usar o teu espaço de scripts.','Raw →','Editar','Eliminar']
 };
 const featureI18n={
-  id:{myScripts:'Script Saya',myScriptsButton:'Lihat Script Saya',scriptCreator:'Pembuat script',websiteLink:'Link website',viewScript:'Script',copyRaw:'Salin Link Raw'},
-  en:{myScripts:'My Scripts',myScriptsButton:'My Scripts',scriptCreator:'Script creator',websiteLink:'Website link',viewScript:'Script',copyRaw:'Copy Raw Link'},
+  id:{navScript:'Script',myScripts:'Script Saya',myScriptsButton:'Lihat Script Saya',scriptCreator:'Pembuat script',websiteLink:'Link website',viewScript:'Script',copyRaw:'Salin Link Raw',myPublicScriptsTitle:'Public Script Saya',myPublicScriptsDesc:'Pilih script buatanmu yang sudah diatur menjadi Public.',selectScript:'Pilih Script'},
+  en:{navScript:'Scripts',myScripts:'My Scripts',myScriptsButton:'My Scripts',scriptCreator:'Script creator',websiteLink:'Website link',viewScript:'Script',copyRaw:'Copy Raw Link',myPublicScriptsTitle:'My Public Scripts',myPublicScriptsDesc:'Choose scripts you created that are set to Public.',selectScript:'Select Script'},
   es:{myScripts:'Mis scripts',myScriptsButton:'Mis scripts',scriptCreator:'Creador del script',websiteLink:'Enlace del sitio web',viewScript:'Script',copyRaw:'Copiar enlace Raw'},
   pt:{myScripts:'Meus scripts',myScriptsButton:'Meus scripts',scriptCreator:'Criador do script',websiteLink:'Link do site',viewScript:'Script',copyRaw:'Copiar link Raw'},
   fil:{myScripts:'Aking Scripts',myScriptsButton:'Aking Scripts',scriptCreator:'Gumawa ng script',websiteLink:'Link ng website',viewScript:'Script',copyRaw:'Kopyahin ang Raw link'},
@@ -222,7 +222,7 @@ function detectLanguage(){
 }
 const myScriptsHomeByLang={id:'Script Saya',en:'My Scripts',es:'Mis Scripts',pt:'Meus Scripts',fil:'Aking Scripts',tr:'Scriptlerim',fr:'Mes scripts',de:'Meine Skripte',ja:'自分のスクリプト',ko:'내 스크립트',zh:'我的脚本','zh-TW':'我的腳本',ru:'Мои скрипты',hi:'मेरे स्क्रिप्ट',ar:'برامجي النصية',vi:'Script của tôi',th:'สคริปต์ของฉัน',pl:'Moje skrypty',it:'I miei script','pt-PT':'Os meus scripts'};
 for(const [lang,label] of Object.entries(myScriptsHomeByLang)){if(ui[lang])ui[lang].myScriptsButton=label;}
-function tr(k){ const d=ui[currentLang()]||ui.en||{}; const f={navWorkspace:'Script',myScripts:'My Scripts',myScriptsButton:'Lihat Script Saya',scriptCreator:'Pembuat script',websiteLink:'Link website',viewScript:'Script',exploreTitle:'Jelajahi Script',exploreDesc:'Cari script publik dan simpan favoritmu.',searchPlaceholder:'Cari script...',publicSearchPlaceholder:'Cari script publik...',historyTitle:'Riwayat',notificationsTitle:'Notifikasi',emptyPublicScripts:'Belum ada script publik.',copyRaw:'Salin Link Raw'}; return d[k] ?? ui.id?.[k] ?? f[k] ?? k; }
+function tr(k){ const d=ui[currentLang()]||ui.en||{}; const f={navScript:'Script',navWorkspace:'Script',myScripts:'My Scripts',myScriptsButton:'Lihat Script Saya',scriptCreator:'Pembuat script',websiteLink:'Link website',viewScript:'Script',exploreTitle:'Jelajahi Script',exploreDesc:'Cari script publik dan simpan favoritmu.',searchPlaceholder:'Cari script...',publicSearchPlaceholder:'Cari script publik...',historyTitle:'Riwayat',notificationsTitle:'Notifikasi',emptyPublicScripts:'Belum ada script publik.',copyRaw:'Salin Link Raw',myPublicScriptsTitle:'Public Script Saya',myPublicScriptsDesc:'Pilih script buatanmu yang sudah diatur menjadi Public.',selectScript:'Pilih Script'}; return d[k] ?? ui.id?.[k] ?? f[k] ?? k; }
 function visibilityLabel(v){return v==='public'?tr('public'):v==='private'?tr('private'):v||'';}
 function tutorialData(){ return tutorialText[currentLang()] || fallbackTutorial; }
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));}
@@ -357,6 +357,30 @@ async function submitAuth(e){
   }catch(err){ error.textContent=friendlyAuthError(err); error.style.color='#ff7690'; }
 }
 
+async function renderMyPublicScripts(){
+  const box=$('#myPublicCards'); if(!box)return;
+  try{
+    await syncAuth();
+    if(!currentUser){
+      box.innerHTML=`<div class="empty">${escapeHtml(tr('needLoginWorkspace')||'Login untuk melihat public script kamu.')}</div>`;
+      return;
+    }
+    let result=await sb.from('scripts').select('id,filename,code,visibility,created_at,updated_at,view_count').eq('user_id',currentUser.id).eq('visibility','public').order('updated_at',{ascending:false}).order('id',{ascending:false});
+    if(result.error && /view_count/i.test(result.error.message||'')){
+      result=await sb.from('scripts').select('id,filename,code,visibility,created_at,updated_at').eq('user_id',currentUser.id).eq('visibility','public').order('updated_at',{ascending:false}).order('id',{ascending:false});
+    }
+    if(result.error)throw result.error;
+    const rows=result.data||[];
+    if(!rows.length){
+      box.innerHTML=`<div class="empty">${escapeHtml(tr('emptyMyPublicScripts')||'Belum ada public script. Buat script lalu pilih Public.')}</div>`;
+      return;
+    }
+    box.innerHTML=rows.map(s=>`<article class="public-card" data-select-public="${s.id}" tabindex="0" role="button"><h3>${escapeHtml(s.filename)}</h3><div class="public-meta">${escapeHtml(tr('scriptCreator'))}: @${escapeHtml(currentUser?.user_metadata?.username||'User')}</div><div class="public-meta">${escapeHtml(tr('websiteLink'))}: ${escapeHtml(SITE_URL)}</div><div class="public-meta">👁 ${Number(s.view_count||0)}</div><div class="script-actions"><a class="raw mini-btn" href="${rawUrl(s.id)}" target="_blank" rel="noreferrer">${escapeHtml(tr('viewScript'))}</a><button class="mini-btn" data-select-public-btn="${s.id}">${escapeHtml(tr('selectScript'))}</button><button class="mini-btn" data-copy-my-public="${s.id}">${escapeHtml(tr('copyRaw'))}</button></div></article>`).join('');
+    box.querySelectorAll('[data-select-public], [data-select-public-btn]').forEach(el=>el.addEventListener('click',e=>{ if(e.target.closest('a'))return; const id=el.dataset.selectPublic||el.dataset.selectPublicBtn; if(id) window.open(rawUrl(id),'_blank','noopener,noreferrer'); }));
+    box.querySelectorAll('[data-copy-my-public]').forEach(b=>b.onclick=e=>{e.stopPropagation();navigator.clipboard?.writeText(rawUrl(b.dataset.copyMyPublic));});
+  }catch(e){box.innerHTML=`<div class="empty">${escapeHtml(e.message||'Gagal memuat public script kamu.')}</div>`;}
+}
+
 async function renderScriptsIfPossible(){
   const box=$('#cards'); if(!box) return; await syncAuth();
   if(!token){box.innerHTML=`<div class="empty">${escapeHtml(tr('needLoginWorkspace'))}</div>`;$('#scriptCount').textContent='0';return;}
@@ -452,7 +476,7 @@ function routePage(){
   if(workspaceView) workspaceView.classList.toggle('page-hidden',!workspace);
   if(createView) createView.classList.toggle('page-hidden',!create);
   if(profileView) profileView.classList.toggle('page-hidden',!profile);
-  if(explore){ window.scrollTo({top:0,behavior:'smooth'}); renderPublicScripts(); }
+  if(explore){ window.scrollTo({top:0,behavior:'smooth'}); renderPublicScripts(); renderMyPublicScripts(); }
   else if(workspace){ window.scrollTo({top:0,behavior:'smooth'}); renderScriptsIfPossible(); }
   else if(create){ window.scrollTo({top:0,behavior:'smooth'}); renderScriptsIfPossible(); }
   else if(profile){ window.scrollTo({top:0,behavior:'smooth'}); loadProfile(); }
