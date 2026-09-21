@@ -19,6 +19,11 @@ async function toggleFavorite(id){if(!currentUser){openAuth('login');return;}con
   await renderPublicScripts(); await renderScriptsIfPossible();}
 async function recordScriptView(id){try{await sb.from('script_views').insert({script_id:id,user_id:currentUser?.id||null,visitor_id:ensureVisitorId()});await sb.rpc('increment_script_view',{p_script_id:id});}catch(_){} if(currentUser){try{await sb.from('script_history').upsert({user_id:currentUser.id,script_id:id,last_viewed_at:new Date().toISOString()},{onConflict:'user_id,script_id'});}catch(_){}}}
 async function reportScript(id){if(!currentUser){openAuth('login');return;}const reason=prompt(currentLang()==='id'?'Alasan laporan:':'Report reason:');if(!reason)return;const {error}=await sb.from('script_reports').insert({script_id:id,reporter_id:currentUser.id,reason:reason.slice(0,500)});if(!error)alert(currentLang()==='id'?'Laporan terkirim.':'Report sent.');}
+function normalizeAvatar(value){
+  const v=String(value||'').trim();
+  return /^profil[1-5]\.png$/.test(v) ? v : 'profil1.png';
+}
+
 async function fetchPublicProfile(userId){
   try{
     // avatar_url may not exist yet on older Supabase schemas; fall back gracefully.
@@ -27,9 +32,7 @@ async function fetchPublicProfile(userId){
       pr=await sb.from('profiles').select('id,username').eq('id',userId).maybeSingle();
     }
     if(pr.data?.id){
-      const avatar = String(userId)===String(currentUser?.id)
-        ? (currentUser?.user_metadata?.avatar_url || localStorage.getItem('cb_avatar') || pr.data.avatar_url || 'profil1.png')
-        : (pr.data.avatar_url || 'profil1.png');
+      const avatar = normalizeAvatar(pr.data.avatar_url);
       return {...pr.data, avatar_url:avatar};
     }
   }catch(_){}
@@ -37,7 +40,7 @@ async function fetchPublicProfile(userId){
     return {
       id:userId,
       username:currentUser.user_metadata?.username || currentUser.email?.split('@')[0] || 'User',
-      avatar_url:currentUser.user_metadata?.avatar_url || localStorage.getItem('cb_avatar') || 'profil1.png'
+      avatar_url:normalizeAvatar(currentUser.user_metadata?.avatar_url)
     };
   }
   return null;
@@ -148,13 +151,27 @@ async function syncAuth(){
 async function ensureProfileRecord(){
   if(!currentUser)return;
   const username=(currentUser.user_metadata?.username||currentUser.email?.split('@')[0]||'User').trim();
-  const avatar=currentUser.user_metadata?.avatar_url || localStorage.getItem('cb_avatar') || 'profil1.png';
   try{
+    // Supabase profile is the account's source of truth. Never copy another
+    // account's browser localStorage avatar into this account.
+    let existing=await sb.from('profiles').select('id,username,avatar_url').eq('id',currentUser.id).maybeSingle();
+    if(existing.error && /avatar_url/i.test(existing.error.message||'')){
+      existing=await sb.from('profiles').select('id,username').eq('id',currentUser.id).maybeSingle();
+    }
+    const dbAvatar=String(existing.data?.avatar_url||'').trim();
+    const avatar=/^profil[1-5]\.png$/.test(dbAvatar) ? dbAvatar : normalizeAvatar(currentUser.user_metadata?.avatar_url);
     let result=await sb.from('profiles').upsert({id:currentUser.id,username,avatar_url:avatar},{onConflict:'id'});
     if(result.error && /avatar_url/i.test(result.error.message||'')){
       result=await sb.from('profiles').upsert({id:currentUser.id,username},{onConflict:'id'});
     }
     if(result.error) console.warn('Profile sync failed:',result.error.message);
+    else{
+      const meta=currentUser.user_metadata||{};
+      if(meta.username!==username || normalizeAvatar(meta.avatar_url)!==avatar){
+        const updated=await sb.auth.updateUser({data:{...meta,username,avatar_url:avatar}});
+        if(updated.data?.user) currentUser=updated.data.user;
+      }
+    }
   }catch(e){ console.warn('Profile sync failed:',e.message||e); }
 }
 
@@ -573,19 +590,19 @@ $('#profileCreateBtn')?.addEventListener('click',()=>goTo('create'));
 document.querySelectorAll('.avatar-choice').forEach(b=>b.addEventListener('click',async()=>{
   await syncAuth();
   if(!currentUser){openAuth('login');return;}
-  const avatar=b.dataset.avatar;
+  const avatar=normalizeAvatar(b.dataset.avatar);
   try{
     const username=(currentUser.user_metadata?.username||currentUser.email?.split('@')[0]||'User').trim();
-    const {data,error}=await sb.auth.updateUser({data:{username,avatar_url:avatar}});
+    // Save to the account row first so every device sees the same avatar.
+    let pr=await sb.from('profiles').upsert({id:currentUser.id,username,avatar_url:avatar},{onConflict:'id'});
+    if(pr.error && /avatar_url/i.test(pr.error.message||'')){
+      throw new Error('Kolom avatar_url belum ada di profiles. Jalankan supabase-profile-fix.sql terlebih dahulu.');
+    }
+    if(pr.error)throw pr.error;
+    const {data,error}=await sb.auth.updateUser({data:{...(currentUser.user_metadata||{}),username,avatar_url:avatar}});
     if(error)throw error;
     if(data?.user)currentUser=data.user;
     localStorage.setItem('cb_avatar',avatar);
-    // Also persist to profiles when avatar_url exists, but never block the UI if the column is absent.
-    let pr=await sb.from('profiles').upsert({id:currentUser.id,username,avatar_url:avatar},{onConflict:'id'});
-    if(pr.error && /avatar_url/i.test(pr.error.message||'')){
-      pr=await sb.from('profiles').upsert({id:currentUser.id,username},{onConflict:'id'});
-    }
-    if(pr.error)console.warn('Avatar profile sync failed:',pr.error.message);
     if($('#profileAvatar'))$('#profileAvatar').src=avatar;
     document.querySelectorAll('.avatar-choice').forEach(x=>x.classList.toggle('selected',x===b));
     await loadProfile();

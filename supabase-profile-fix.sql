@@ -31,3 +31,10 @@ end; $$;
 
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created after insert on auth.users for each row execute procedure public.handle_new_user();
+
+-- Sync valid avatar selections that were already saved in Auth metadata.
+update public.profiles p
+set avatar_url = u.raw_user_meta_data->>'avatar_url'
+from auth.users u
+where p.id = u.id
+  and (u.raw_user_meta_data->>'avatar_url') ~ '^profil[1-5]\\.png$';
