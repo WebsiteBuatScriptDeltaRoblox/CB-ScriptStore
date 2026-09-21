@@ -814,3 +814,83 @@ routePage();
     routePage();
   });
 })();
+
+/* CB ScriptStore local UX enhancements — no new Supabase tables/SQL required. */
+(function(){
+  const q=s=>document.querySelector(s);
+  const qa=s=>Array.from(document.querySelectorAll(s));
+  function toast(message,type='info'){
+    let box=q('#cbToast');
+    if(!box){box=document.createElement('div');box.id='cbToast';box.className='cb-toast-stack';document.body.appendChild(box);}
+    const el=document.createElement('div');el.className='cb-toast '+type;el.textContent=message;box.appendChild(el);
+    requestAnimationFrame(()=>el.classList.add('show'));
+    setTimeout(()=>{el.classList.remove('show');setTimeout(()=>el.remove(),250);},1800);
+  }
+  function addBackTop(){
+    if(q('#cbBackTop'))return;
+    const b=document.createElement('button');b.id='cbBackTop';b.className='cb-back-top';b.textContent='↑';b.title='Kembali ke atas';
+    b.onclick=()=>window.scrollTo({top:0,behavior:'smooth'});document.body.appendChild(b);
+    const sync=()=>b.classList.toggle('show',window.scrollY>420);window.addEventListener('scroll',sync,{passive:true});sync();
+  }
+  function animatePage(){
+    const active=document.querySelector('.page-view:not(.page-hidden), main#home:not(.page-hidden)');
+    if(active){active.classList.remove('cb-page-enter');void active.offsetWidth;active.classList.add('cb-page-enter');}
+  }
+  function enhanceAdmin(){
+    const panel=q('#adminPanel'), users=q('#adminUsers'), scripts=q('#adminPublicScripts');
+    if(!panel||!users||!scripts)return;
+    const userSection=users.closest('.admin-section'), scriptSection=scripts.closest('.admin-section');
+    if(userSection && !q('#cbAdminUserFilter')){
+      const row=document.createElement('div');row.className='cb-admin-filter-row';row.id='cbAdminUserFilter';
+      row.innerHTML='<select id="cbUserFilter" class="admin-filter"><option value="all">Semua akun</option><option value="verified">Centang biru</option><option value="badge">Punya badge</option><option value="plain">Tanpa badge</option></select><select id="cbUserSort" class="admin-filter"><option value="az">A–Z</option><option value="za">Z–A</option></select>';
+      const search=userSection.querySelector('#adminUserSearch');search?.insertAdjacentElement('afterend',row);
+      row.querySelector('#cbUserFilter').onchange=filterAdminUsers;row.querySelector('#cbUserSort').onchange=filterAdminUsers;
+    }
+    if(scriptSection && !q('#cbAdminScriptFilter')){
+      const row=document.createElement('div');row.className='cb-admin-filter-row';row.id='cbAdminScriptFilter';
+      row.innerHTML='<select id="cbScriptSort" class="admin-filter"><option value="new">Terbaru</option><option value="old">Terlama</option><option value="az">Nama A–Z</option><option value="za">Nama Z–A</option></select>';
+      const search=scriptSection.querySelector('#adminScriptSearch');search?.insertAdjacentElement('afterend',row);
+      row.querySelector('#cbScriptSort').onchange=sortAdminScripts;
+    }
+    addQuickBadges(users);
+    filterAdminUsers();sortAdminScripts();
+  }
+  function addQuickBadges(users){
+    users.querySelectorAll('.admin-user').forEach(card=>{
+      if(card.querySelector('.cb-quick-badges'))return;
+      const main=card.querySelector('.admin-user-main');if(!main)return;
+      const btn=card.querySelector('[data-admin-emoji]');if(!btn)return;
+      const id=btn.dataset.adminEmoji;
+      const wrap=document.createElement('div');wrap.className='cb-quick-badges';
+      ['👑','⭐','🛡️','🎮','💎','🔥'].forEach(icon=>{const b=document.createElement('button');b.type='button';b.className='cb-quick-badge';b.textContent=icon;b.title='Pakai '+icon;b.onclick=async()=>{if(typeof adminSetProfile==='function'){await adminSetProfile(id,'user_badge',icon);toast('Badge '+icon+' berhasil dipasang','ok');}};wrap.appendChild(b);});
+      main.appendChild(wrap);
+    });
+  }
+  function filterAdminUsers(){
+    const users=q('#adminUsers');if(!users)return;
+    const mode=q('#cbUserFilter')?.value||'all',sort=q('#cbUserSort')?.value||'az';
+    const cards=qa('#adminUsers .admin-user');
+    cards.sort((a,b)=>{const A=(a.querySelector('.admin-user-main b')?.textContent||'').toLowerCase(),B=(b.querySelector('.admin-user-main b')?.textContent||'').toLowerCase();return sort==='za'?B.localeCompare(A):A.localeCompare(B);}).forEach(c=>users.appendChild(c));
+    cards.forEach(c=>{const txt=c.textContent||'';const verified=!!c.querySelector('.cb-verified'),badge=!!c.querySelector('.cb-user-badge');let show=true;if(mode==='verified')show=verified;if(mode==='badge')show=badge;if(mode==='plain')show=!badge&&!verified;c.style.display=show?'':'none';});
+  }
+  function sortAdminScripts(){
+    const box=q('#adminPublicScripts');if(!box)return;const mode=q('#cbScriptSort')?.value||'new';
+    qa('#adminPublicScripts .admin-user').sort((a,b)=>{const A=(a.querySelector('.admin-user-main b')?.textContent||'').toLowerCase(),B=(b.querySelector('.admin-user-main b')?.textContent||'').toLowerCase();return mode==='za'?B.localeCompare(A):mode==='az'?A.localeCompare(B):mode==='old'?0:0;}).forEach(c=>box.appendChild(c));
+  }
+  // Wrap admin panel refresh so local filters/preset controls return after every server update.
+  if(typeof window.loadAdminPanel==='function' && !window.loadAdminPanel.__cbEnhanced){
+    const original=window.loadAdminPanel;const wrapped=async function(){const r=await original.apply(this,arguments);setTimeout(enhanceAdmin,0);return r;};wrapped.__cbEnhanced=true;window.loadAdminPanel=wrapped;
+  }
+  document.addEventListener('click',e=>{
+    const b=e.target.closest('[data-copy],[data-profile-copy],[data-fav],[data-admin-delete-script]');
+    if(!b)return;
+    if(b.matches('[data-admin-delete-script]'))return;
+    setTimeout(()=>toast(b.matches('[data-fav]')?'Favorit diperbarui':'Tersalin ke clipboard','ok'),80);
+  },true);
+  document.addEventListener('click',e=>{if(e.target.closest('.btn,.mini-btn')){const el=e.target.closest('.btn,.mini-btn');el.classList.remove('cb-press');void el.offsetWidth;el.classList.add('cb-press');}});
+  window.addEventListener('hashchange',()=>setTimeout(animatePage,30));
+  addBackTop();
+  setTimeout(()=>{enhanceAdmin();animatePage();},600);
+  const obs=new MutationObserver(()=>{if(q('#adminPanel'))enhanceAdmin();});
+  obs.observe(document.body,{childList:true,subtree:true});
+})();

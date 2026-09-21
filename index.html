@@ -58,6 +58,14 @@ profile-script-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));g
 #adminAvatarModal .admin-avatar-choice img{display:block!important;width:100%!important;height:100%!important;aspect-ratio:1!important}
 @media(max-width:420px){#adminAvatarModal{padding:10px!important}#adminAvatarModal .admin-avatar-modal-box{width:min(94vw,360px)!important;padding:12px!important}#adminAvatarModal .admin-avatar-grid{gap:6px!important}#adminAvatarModal .admin-avatar-choice span{min-width:16px;height:16px;line-height:15px;font-size:9px}}
 </style>
+
+<style id="cb-local-ux-enhancements">
+.cb-toast-stack{position:fixed;right:14px;bottom:18px;z-index:2147483001;display:flex;flex-direction:column;gap:8px;pointer-events:none}.cb-toast{padding:10px 14px;border:1px solid rgba(55,180,255,.45);border-radius:12px;background:rgba(4,18,38,.94);color:#e8f8ff;box-shadow:0 10px 30px rgba(0,0,0,.35);transform:translateY(12px);opacity:0;transition:.22s ease;font-size:.88rem}.cb-toast.show{transform:none;opacity:1}.cb-toast.ok{border-color:rgba(40,220,170,.55)}
+.cb-back-top{position:fixed;right:14px;bottom:74px;width:42px;height:42px;border-radius:50%;border:1px solid rgba(45,157,255,.55);background:rgba(4,18,38,.9);color:#dff4ff;font-size:20px;z-index:1200;opacity:0;pointer-events:none;transform:translateY(10px);transition:.2s}.cb-back-top.show{opacity:1;pointer-events:auto;transform:none}.cb-page-enter{animation:cbPageIn .28s ease both}@keyframes cbPageIn{from{opacity:.35;transform:translateY(8px)}to{opacity:1;transform:none}}
+.cb-press{animation:cbPress .18s ease}@keyframes cbPress{50%{transform:scale(.96)}}
+.cb-admin-filter-row{display:flex;gap:8px;margin:0 0 10px}.admin-filter{flex:1;min-width:0;padding:10px 11px;border-radius:11px;border:1px solid rgba(45,157,255,.3);background:rgba(3,12,25,.72);color:#dff4ff;outline:none}.cb-quick-badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}.cb-quick-badge{width:31px;height:31px;border-radius:9px;border:1px solid rgba(45,157,255,.32);background:rgba(2,13,28,.75);cursor:pointer;font-size:16px}.cb-quick-badge:hover{border-color:#28a8ff;transform:translateY(-1px)}
+@media(max-width:600px){.cb-admin-filter-row{flex-direction:column}.admin-filter{width:100%}.cb-toast-stack{left:12px;right:12px;bottom:14px}.cb-toast{text-align:center}.cb-back-top{bottom:66px}}
+</style>
 </head>
 <body>
   <div class="bg-grid"></div><div class="glow g1"></div><div class="glow g2"></div>
