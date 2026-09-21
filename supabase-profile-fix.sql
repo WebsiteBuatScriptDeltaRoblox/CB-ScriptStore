@@ -1,4 +1,5 @@
 -- CB ScriptStore profile repair. Followers/following/search are intentionally not used.
+alter table public.profiles add column if not exists username text;
 alter table public.profiles add column if not exists avatar_url text default 'profil1.png';
 
 alter table public.profiles enable row level security;

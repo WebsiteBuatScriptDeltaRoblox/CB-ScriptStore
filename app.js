@@ -21,14 +21,28 @@ async function recordScriptView(id){try{await sb.from('script_views').insert({sc
 async function reportScript(id){if(!currentUser){openAuth('login');return;}const reason=prompt(currentLang()==='id'?'Alasan laporan:':'Report reason:');if(!reason)return;const {error}=await sb.from('script_reports').insert({script_id:id,reporter_id:currentUser.id,reason:reason.slice(0,500)});if(!error)alert(currentLang()==='id'?'Laporan terkirim.':'Report sent.');}
 async function fetchPublicProfile(userId){
   try{
-    const pr=await sb.from('profiles').select('id,username,avatar_url').eq('id',userId).maybeSingle();
-    if(pr.data?.id)return pr.data;
+    // avatar_url may not exist yet on older Supabase schemas; fall back gracefully.
+    let pr=await sb.from('profiles').select('id,username,avatar_url').eq('id',userId).maybeSingle();
+    if(pr.error && /avatar_url/i.test(pr.error.message||'')){
+      pr=await sb.from('profiles').select('id,username').eq('id',userId).maybeSingle();
+    }
+    if(pr.data?.id){
+      const avatar = String(userId)===String(currentUser?.id)
+        ? (currentUser?.user_metadata?.avatar_url || localStorage.getItem('cb_avatar') || pr.data.avatar_url || 'profil1.png')
+        : (pr.data.avatar_url || 'profil1.png');
+      return {...pr.data, avatar_url:avatar};
+    }
   }catch(_){}
   if(currentUser && String(currentUser.id)===String(userId)){
-    return {id:userId,username:currentUser.user_metadata?.username||currentUser.email?.split('@')[0]||'User',avatar_url:'profil1.png'};
+    return {
+      id:userId,
+      username:currentUser.user_metadata?.username || currentUser.email?.split('@')[0] || 'User',
+      avatar_url:currentUser.user_metadata?.avatar_url || localStorage.getItem('cb_avatar') || 'profil1.png'
+    };
   }
   return null;
 }
+
 async function openPublicProfile(userId){
   await syncAuth();
   if(!currentUser){pendingRoute='explore';openAuth('login');return;}
@@ -59,11 +73,23 @@ async function renderPublicScripts(){
     cachedPublicScripts=result.data||[];
     const ids=[...new Set(cachedPublicScripts.map(x=>x.user_id).filter(Boolean))];
     let profiles=[];
-    if(ids.length){const pr=await sb.from('profiles').select('id,username,avatar_url').in('id',ids);profiles=pr.data||[];}
+    if(ids.length){
+      let pr=await sb.from('profiles').select('id,username,avatar_url').in('id',ids);
+      if(pr.error && /avatar_url/i.test(pr.error.message||'')){
+        pr=await sb.from('profiles').select('id,username').in('id',ids);
+      }
+      profiles=pr.data||[];
+    }
     const pm=new Map(profiles.map(x=>[x.id,x]));
     await Promise.all(ids.map(async id=>{const p=pm.get(id);if(!p?.username){const fp=await fetchPublicProfile(id);if(fp)pm.set(id,fp);}}));
-    cachedPublicScripts.forEach(x=>{const p=pm.get(x.user_id)||{};x.profiles={username:p.username||'User',avatar_url:p.avatar_url||'profil1.png'};});
-    const fd=await loadFollowData(ids);
+    cachedPublicScripts.forEach(x=>{
+      const p=pm.get(x.user_id)||{};
+      const isMine=String(x.user_id)===String(currentUser.id);
+      x.profiles={
+        username:p.username || (isMine ? (currentUser.user_metadata?.username || currentUser.email?.split('@')[0] || 'User') : 'User'),
+        avatar_url:isMine ? (currentUser.user_metadata?.avatar_url || localStorage.getItem('cb_avatar') || p.avatar_url || 'profil1.png') : (p.avatar_url || 'profil1.png')
+      };
+    });
     const rows=cachedPublicScripts.filter(s=>(!q||(s.filename+' '+(s.profiles?.username||'')).toLowerCase().includes(q)));
     if(!rows.length){box.innerHTML=`<div class="empty">${escapeHtml(tr('emptyPublicScripts')||'Belum ada script publik.')}</div>`;return;}
     box.innerHTML=rows.map(s=>{
@@ -120,14 +146,16 @@ async function syncAuth(){
 async function ensureProfileRecord(){
   if(!currentUser)return;
   const username=(currentUser.user_metadata?.username||currentUser.email?.split('@')[0]||'User').trim();
+  const avatar=currentUser.user_metadata?.avatar_url || localStorage.getItem('cb_avatar') || 'profil1.png';
   try{
-    const existing=await sb.from('profiles').select('avatar_url').eq('id',currentUser.id).maybeSingle();
-    const payload={id:currentUser.id,username};
-    if(!existing.data) payload.avatar_url='profil1.png';
-    const {error}=await sb.from('profiles').upsert(payload,{onConflict:'id'});
-    if(error) console.warn('Profile sync failed:',error.message);
+    let result=await sb.from('profiles').upsert({id:currentUser.id,username,avatar_url:avatar},{onConflict:'id'});
+    if(result.error && /avatar_url/i.test(result.error.message||'')){
+      result=await sb.from('profiles').upsert({id:currentUser.id,username},{onConflict:'id'});
+    }
+    if(result.error) console.warn('Profile sync failed:',result.error.message);
   }catch(e){ console.warn('Profile sync failed:',e.message||e); }
 }
+
 
 const levels = [
   { icon:'🌱', code:`local playerName = "Fahrizal"\nprint("Halo, " .. playerName)`, key:'l1', focus:'variables' },
@@ -401,22 +429,25 @@ async function loadProfile(){
     if(emailEl)emailEl.textContent=tr('profileGuest');
     if(menuName)menuName.textContent='Guest';
     if(menuStatus)menuStatus.textContent=tr('notLoggedIn');
+    if($('#profileAvatar'))$('#profileAvatar').src='profil1.png';
     return;
   }
   let username=currentUser.user_metadata?.username || '';
-  let avatar='profil1.png';
+  let avatar=currentUser.user_metadata?.avatar_url || localStorage.getItem('cb_avatar') || 'profil1.png';
   try{
     const profile=await fetchPublicProfile(currentUser.id);
     if(profile?.username) username=profile.username;
     if(profile?.avatar_url) avatar=profile.avatar_url;
   }catch(_){}
-  username=username || currentUser.email?.split('@')[0] || 'User';
+  username=(username || currentUser.email?.split('@')[0] || 'User').trim();
   if(nameEl)nameEl.textContent=username;
   if(emailEl)emailEl.textContent=tr('loggedIn');
   if(menuName)menuName.textContent=username;
   if(menuStatus)menuStatus.textContent=tr('loggedIn');
   if($('#profileAvatar'))$('#profileAvatar').src=avatar;
+  document.querySelectorAll('.avatar-choice').forEach(btn=>btn.classList.toggle('selected',btn.dataset.avatar===avatar));
 }
+
 function closeMenu(){const menu=$('#sideMenu'),back=$('#menuBackdrop'),toggle=$('#menuToggle');if(menu)menu.classList.remove('open');if(back)back.classList.add('hidden');if(toggle){toggle.setAttribute('aria-expanded','false');toggle.classList.remove('active');}if(menu)menu.setAttribute('aria-hidden','true');}
 function openMenu(){const menu=$('#sideMenu'),back=$('#menuBackdrop'),toggle=$('#menuToggle');if(menu)menu.classList.add('open');if(back)back.classList.remove('hidden');if(toggle){toggle.setAttribute('aria-expanded','true');toggle.classList.add('active');}if(menu)menu.setAttribute('aria-hidden','false');loadProfile();}
 async function goTo(route){
@@ -476,7 +507,10 @@ async function renderMyPublicScripts(){
       box.innerHTML=`<div class="empty">${escapeHtml(tr('emptyMyPublicScripts')||'Belum ada public script. Buat script lalu pilih Public.')}</div>`;
       return;
     }
-    const myAvatar=(await sb.from('profiles').select('avatar_url,username').eq('id',currentUser.id).maybeSingle()).data||{}; const myOwner=myAvatar.username||currentUser.user_metadata?.username||'User'; const myPhoto=myAvatar.avatar_url||'profil1.png'; box.innerHTML=rows.map(s=>`<article class="public-card" data-select-public="${s.id}"><div class="public-profile"><img class="public-profile-avatar" src="${escapeHtml(myPhoto)}" alt="${escapeHtml(myOwner)}"><div><div class="public-profile-label">${escapeHtml(tr('publicBy'))}</div><div class="public-profile-name">@${escapeHtml(myOwner)}</div></div></div><h3>${escapeHtml(s.filename)}</h3><div class="script-actions"><button class="mini-btn copy-script-btn" data-copy-my-public="${s.id}">${escapeHtml(tr('copyScript'))}</button></div></article>`).join('');
+    const myAvatar=await fetchPublicProfile(currentUser.id);
+    const myOwner=myAvatar?.username || currentUser.user_metadata?.username || currentUser.email?.split('@')[0] || 'User';
+    const myPhoto=myAvatar?.avatar_url || currentUser.user_metadata?.avatar_url || localStorage.getItem('cb_avatar') || 'profil1.png';
+    box.innerHTML=rows.map(s=>`<article class="public-card" data-select-public="${s.id}"><div class="public-profile"><img class="public-profile-avatar" src="${escapeHtml(myPhoto)}" alt="${escapeHtml(myOwner)}"><div><div class="public-profile-label">${escapeHtml(tr('publicBy'))}</div><div class="public-profile-name">@${escapeHtml(myOwner)}</div></div></div><h3>${escapeHtml(s.filename)}</h3><div class="script-actions"><button class="mini-btn copy-script-btn" data-copy-my-public="${s.id}">${escapeHtml(tr('copyScript'))}</button></div></article>`).join('');
     box.querySelectorAll('[data-copy-my-public]').forEach(b=>b.onclick=async e=>{e.stopPropagation();try{await navigator.clipboard.writeText(rawLoadstring(b.dataset.copyMyPublic));const old=b.textContent;b.textContent=tr('copiedScript')||'Copied';setTimeout(()=>b.textContent=old,1200);}catch(_){}});
   }catch(e){box.innerHTML=`<div class="empty">${escapeHtml(e.message||'Gagal memuat public script kamu.')}</div>`;}
 }
@@ -534,7 +568,29 @@ $('#backToScripts').onclick=()=>goTo('workspace');
 $('#logoutBtn')?.addEventListener('click',logout);
 $('#profileLogoutBtn')?.addEventListener('click',logout);
 $('#profileCreateBtn')?.addEventListener('click',()=>goTo('create'));
-document.querySelectorAll('.avatar-choice').forEach(b=>b.addEventListener('click',async()=>{await syncAuth();if(!currentUser)return;const avatar=b.dataset.avatar;try{const username=(currentUser.user_metadata?.username||currentUser.email?.split('@')[0]||'User').trim();const {error}=await sb.from('profiles').upsert({id:currentUser.id,username,avatar_url:avatar},{onConflict:'id'});if(error)throw error;$('#profileAvatar').src=avatar;}catch(e){console.error(e);alert(e.message||'Gagal menyimpan foto profil.');}}));
+document.querySelectorAll('.avatar-choice').forEach(b=>b.addEventListener('click',async()=>{
+  await syncAuth();
+  if(!currentUser){openAuth('login');return;}
+  const avatar=b.dataset.avatar;
+  try{
+    const username=(currentUser.user_metadata?.username||currentUser.email?.split('@')[0]||'User').trim();
+    const {data,error}=await sb.auth.updateUser({data:{username,avatar_url:avatar}});
+    if(error)throw error;
+    if(data?.user)currentUser=data.user;
+    localStorage.setItem('cb_avatar',avatar);
+    // Also persist to profiles when avatar_url exists, but never block the UI if the column is absent.
+    let pr=await sb.from('profiles').upsert({id:currentUser.id,username,avatar_url:avatar},{onConflict:'id'});
+    if(pr.error && /avatar_url/i.test(pr.error.message||'')){
+      pr=await sb.from('profiles').upsert({id:currentUser.id,username},{onConflict:'id'});
+    }
+    if(pr.error)console.warn('Avatar profile sync failed:',pr.error.message);
+    if($('#profileAvatar'))$('#profileAvatar').src=avatar;
+    document.querySelectorAll('.avatar-choice').forEach(x=>x.classList.toggle('selected',x===b));
+    await loadProfile();
+    await renderPublicScripts();
+    await renderMyPublicScripts();
+  }catch(e){console.error(e);alert(e.message||'Gagal menyimpan foto profil.');}
+}));
 $('#loginBtn').onclick=()=>{closeMenu();openAuth('login');};
 $('#registerBtn').onclick=()=>{closeMenu();openAuth('register');};
 $('#menuLogoutBtn').onclick=()=>{closeMenu();logout();};
