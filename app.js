@@ -598,8 +598,8 @@ async function loadProfile(){
   document.querySelectorAll('.avatar-choice').forEach(btn=>btn.classList.toggle('selected',btn.dataset.avatar===avatar));
 }
 
-function closeMenu(){const menu=$('#sideMenu'),back=$('#menuBackdrop'),toggle=$('#menuToggle');if(menu)menu.classList.remove('open');if(back)back.classList.add('hidden');if(toggle){toggle.setAttribute('aria-expanded','false');toggle.classList.remove('active');}if(menu)menu.setAttribute('aria-hidden','true');}
-function openMenu(){const menu=$('#sideMenu'),back=$('#menuBackdrop'),toggle=$('#menuToggle');if(menu)menu.classList.add('open');if(back)back.classList.remove('hidden');if(toggle){toggle.setAttribute('aria-expanded','true');toggle.classList.add('active');}if(menu)menu.setAttribute('aria-hidden','false');loadProfile();}
+function closeMenu(){const menu=$('#sideMenu'),back=$('#menuBackdrop'),toggle=$('#menuToggle');if(menu)menu.classList.remove('open');if(back)back.classList.add('hidden');if(toggle){toggle.setAttribute('aria-expanded','false');toggle.classList.remove('active');}if(menu)menu.setAttribute('aria-hidden','true');document.body.classList.remove('menu-open');document.documentElement.classList.remove('menu-open');document.body.style.removeProperty('overflow');document.body.style.removeProperty('position');document.body.style.removeProperty('touch-action');}
+function openMenu(){const menu=$('#sideMenu'),back=$('#menuBackdrop'),toggle=$('#menuToggle');if(menu)menu.classList.add('open');if(back)back.classList.remove('hidden');if(toggle){toggle.setAttribute('aria-expanded','true');toggle.classList.add('active');}if(menu)menu.setAttribute('aria-hidden','false');document.body.classList.add('menu-open');document.documentElement.classList.add('menu-open');document.body.style.removeProperty('overflow');document.body.style.removeProperty('position');document.body.style.touchAction='pan-y';loadProfile();}
 async function goTo(route){
   closeMenu();
   if(route==='stats'){ window.location.hash='#stats'; return; }
@@ -746,6 +746,9 @@ $('#menuLogoutBtn').onclick=()=>{closeMenu();logout();};
 $('#menuToggle').onclick=()=>$('#sideMenu').classList.contains('open')?closeMenu():openMenu();
 $('#menuClose').onclick=closeMenu;
 $('#menuBackdrop').onclick=closeMenu;
+window.addEventListener('pageshow',closeMenu,{passive:true});
+window.addEventListener('orientationchange',()=>{closeMenu();requestAnimationFrame(()=>window.scrollTo({top:window.scrollY,left:0,behavior:'auto'}));},{passive:true});
+window.addEventListener('resize',()=>{if(window.innerWidth>900)closeMenu();},{passive:true});
 $('#sideMenu').querySelectorAll('[data-menu-route]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();goTo(a.dataset.menuRoute);}));
 $('#startBtn').onclick=()=>goTo('create');
 $('#myScriptsHomeBtn').onclick=async()=>{ await goTo('workspace'); };

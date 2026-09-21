@@ -66,6 +66,19 @@ profile-script-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));g
 .cb-admin-filter-row{display:flex;gap:8px;margin:0 0 10px}.admin-filter{flex:1;min-width:0;padding:10px 11px;border-radius:11px;border:1px solid rgba(45,157,255,.3);background:rgba(3,12,25,.72);color:#dff4ff;outline:none}.cb-quick-badges{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}.cb-quick-badge{width:31px;height:31px;border-radius:9px;border:1px solid rgba(45,157,255,.32);background:rgba(2,13,28,.75);cursor:pointer;font-size:16px}.cb-quick-badge:hover{border-color:#28a8ff;transform:translateY(-1px)}
 @media(max-width:600px){.cb-admin-filter-row{flex-direction:column}.admin-filter{width:100%}.cb-toast-stack{left:12px;right:12px;bottom:14px}.cb-toast{text-align:center}.cb-back-top{bottom:66px}}
 </style>
+
+<style id="cb-performance-menu-fix">
+/* Mobile performance + menu touch fix */
+html,body{max-width:100%;overflow-x:hidden}
+body{touch-action:pan-y;-webkit-overflow-scrolling:touch}
+.side-menu{will-change:transform;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;overscroll-behavior:contain;touch-action:pan-y}
+.menu-backdrop{backdrop-filter:none!important;-webkit-backdrop-filter:none!important;touch-action:none;background:rgba(0,7,20,.58)!important}
+.menu-backdrop.hidden{display:none!important}
+.menu-toggle,.menu-close,.side-nav a,.side-auth button{touch-action:manipulation}
+.cb-page-enter{animation:none!important}
+.cb-press{animation:none!important}
+@media (prefers-reduced-motion: reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+</style>
 </head>
 <body>
   <div class="bg-grid"></div><div class="glow g1"></div><div class="glow g2"></div>
