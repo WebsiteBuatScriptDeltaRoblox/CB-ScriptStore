@@ -86,25 +86,71 @@ async function isAdmin(){
     return !r.error && r.data?.is_admin===true;
   }catch(_){return false;}
 }
+function containsInappropriateWord(text){
+  const blocked=[
+    'anjing','asu','bangsat','bajingan','brengsek','goblok','tolol','kontol','memek','ngentot','jancuk','peler','pepek','titit','bokep','porno','porn','sex','seks','fuck','fucking','shit','bitch','dick','pussy','cunt','asshole','bastard','motherfucker','nigga','nigger'
+  ];
+  const value=String(text||'').toLowerCase().normalize('NFKC');
+  return blocked.some(word=>value.includes(word));
+}
+function sanitizeScriptFilename(filename){
+  return containsInappropriateWord(filename)?'the Sensor':filename;
+}
+function adminUserCard(u,lang){
+  return `<div class="admin-user"><img src="${escapeHtml(normalizeAvatar(u.avatar_url))}" alt=""><div class="admin-user-main"><b>@${escapeHtml(u.username||'User')}</b><div class="admin-badges">${ownerBadgeHtml(u)||'<span class="admin-none">'+(lang?'Tidak ada badge':'No badge')+'</span>'}</div></div><button class="mini-btn" data-admin-verify="${escapeHtml(u.id)}">${u.verified?(lang?'Cabut Centang':'Remove Verification'):(lang?'Centang Biru':'Verify')}</button><button class="mini-btn" data-admin-emoji="${escapeHtml(u.id)}">${u.user_badge?(lang?'Ubah Badge':'Change Badge'):(lang?'Tambah Badge':'Add Badge')}</button>${u.user_badge?`<button class="mini-btn danger" data-admin-remove-emoji="${escapeHtml(u.id)}">${lang?'Hapus Badge':'Remove Badge'}</button>`:''}</div>`;
+}
+function adminScriptCard(s,u,lang){
+  return `<div class="admin-user"><div class="admin-user-main"><b>${escapeHtml(s.filename)}</b><div>@${escapeHtml(u?.username||'User')} ${ownerBadgeHtml(u)}</div></div><button class="mini-btn danger" data-admin-delete-script="${escapeHtml(s.id)}">${lang?'Hapus dari Public':'Remove from Public'}</button></div>`;
+}
 async function loadAdminPanel(){
   const panel=$('#adminPanel');
   if(!panel)return;
   await syncAuth();
   if(!(await isAdmin())){panel.innerHTML=`<div class="empty">Admin only.</div>`;return;}
   const lang=currentLang()==='id';
-  let result=await sb.from('profiles').select('id,username,avatar_url,verified,user_badge').order('username',{ascending:true});
+  const result=await sb.from('profiles').select('id,username,avatar_url,verified,user_badge').order('username',{ascending:true});
   if(result.error){panel.innerHTML=`<div class="error">${escapeHtml(result.error.message)}</div>`;return;}
   const rows=result.data||[];
-  panel.innerHTML=`<div class="admin-card"><div class="admin-head"><div><h2>🛡️ Admin Panel</h2><p>${lang?'Kelola centang biru, badge emoji, dan Script Public.':'Manage verification, emoji badges, and Public Scripts.'}</p></div></div><div class="admin-section"><h3>👤 ${lang?'Akun':'Accounts'}</h3><div class="admin-users">${rows.map(u=>`<div class="admin-user"><img src="${escapeHtml(normalizeAvatar(u.avatar_url))}" alt=""><div class="admin-user-main"><b>@${escapeHtml(u.username||'User')}</b><div class="admin-badges">${ownerBadgeHtml(u)||'<span class="admin-none">'+(lang?'Tidak ada badge':'No badge')+'</span>'}</div></div><button class="mini-btn" data-admin-verify="${escapeHtml(u.id)}">${u.verified?(lang?'Cabut Centang':'Remove Verification'):(lang?'Centang Biru':'Verify')}</button><button class="mini-btn" data-admin-emoji="${escapeHtml(u.id)}">${u.user_badge?(lang?'Ubah Badge':'Change Badge'):(lang?'Tambah Badge':'Add Badge')}</button>${u.user_badge?`<button class="mini-btn danger" data-admin-remove-emoji="${escapeHtml(u.id)}">${lang?'Hapus Badge':'Remove Badge'}</button>`:''}</div>`).join('')||`<div class="empty">${lang?'Belum ada akun.':'No accounts.'}</div>`}</div></div><div class="admin-section"><h3>🗑️ ${lang?'Hapus Script Public':'Remove Public Scripts'}</h3><div id="adminPublicScripts" class="admin-users"><div class="empty">${lang?'Memuat...':'Loading...'}</div></div></div><div id="adminError" class="error"></div></div>`;
-  panel.querySelectorAll('[data-admin-verify]').forEach(b=>b.onclick=async()=>{const row=rows.find(x=>x.id===b.dataset.adminVerify);await adminSetProfile(b.dataset.adminVerify,'verified',!row?.verified);});
-  panel.querySelectorAll('[data-admin-emoji]').forEach(b=>b.onclick=async()=>{const current=rows.find(x=>x.id===b.dataset.adminEmoji)?.user_badge||'';const badge=prompt(lang?'Masukkan emoji/badge:':'Enter emoji/badge:',current);if(badge===null)return;await adminSetProfile(b.dataset.adminEmoji,'user_badge',badge.trim()||null);});
-  panel.querySelectorAll('[data-admin-remove-emoji]').forEach(b=>b.onclick=async()=>{await adminSetProfile(b.dataset.adminRemoveEmoji,'user_badge',null);});
-  let sr=await sb.from('scripts').select('id,filename,user_id,updated_at').eq('visibility','public').order('updated_at',{ascending:false}).limit(100);
-  const list=$('#adminPublicScripts');
-  if(sr.error){list.innerHTML=`<div class="error">${escapeHtml(sr.error.message)}</div>`;return;}
+  const sr=await sb.from('scripts').select('id,filename,user_id,updated_at').eq('visibility','public').order('updated_at',{ascending:false}).limit(500);
+  if(sr.error){panel.innerHTML=`<div class="error">${escapeHtml(sr.error.message)}</div>`;return;}
+  const scripts=sr.data||[];
+  // Automatically censor existing Public Script names that contain blocked words.
+  for(const s of scripts){
+    const safeName=sanitizeScriptFilename(s.filename);
+    if(safeName!==s.filename){
+      await sb.from('scripts').update({filename:safeName}).eq('id',s.id).eq('visibility','public');
+      s.filename=safeName;
+    }
+  }
   const byId=new Map(rows.map(x=>[x.id,x]));
-  list.innerHTML=(sr.data||[]).map(s=>{const u=byId.get(s.user_id);return `<div class="admin-user"><div class="admin-user-main"><b>${escapeHtml(s.filename)}</b><div>@${escapeHtml(u?.username||'User')} ${ownerBadgeHtml(u)}</div></div><button class="mini-btn danger" data-admin-delete-script="${escapeHtml(s.id)}">${lang?'Hapus dari Public':'Remove from Public'}</button></div>`}).join('')||`<div class="empty">${lang?'Tidak ada Public Script.':'No Public Scripts.'}</div>`;
-  list.querySelectorAll('[data-admin-delete-script]').forEach(b=>b.onclick=async()=>{if(!confirm(lang?'Hapus script ini dari Public Script?':'Remove this script from Public Scripts?'))return;try{const r=await sb.from('scripts').delete().eq('id',b.dataset.adminDeleteScript);if(r.error)throw r.error;await loadAdminPanel();await renderPublicScripts();}catch(e){const er=$('#adminError');if(er)er.textContent=e.message||'Gagal menghapus script.';}});
+  panel.innerHTML=`<div class="admin-card"><div class="admin-head"><div><h2>🛡️ Admin Panel</h2><p>${lang?'Kelola centang biru, badge emoji, dan Script Public.':'Manage verification, emoji badges, and Public Scripts.'}</p></div></div><div class="admin-section"><h3>👤 ${lang?'Akun':'Accounts'}</h3><input id="adminUserSearch" class="admin-search" type="search" placeholder="${lang?'Cari pengguna...':'Search users...'}" autocomplete="off"><div id="adminUsers" class="admin-users"></div></div><div class="admin-section"><h3>🗑️ ${lang?'Hapus Script Public':'Remove Public Scripts'}</h3><input id="adminScriptSearch" class="admin-search" type="search" placeholder="${lang?'Cari script...':'Search scripts...'}" autocomplete="off"><div id="adminPublicScripts" class="admin-users"></div></div><div id="adminError" class="error"></div></div>`;
+
+  const userList=$('#adminUsers');
+  const scriptList=$('#adminPublicScripts');
+  const userSearch=$('#adminUserSearch');
+  const scriptSearch=$('#adminScriptSearch');
+
+  const renderUsers=()=>{
+    const q=(userSearch?.value||'').trim().toLowerCase();
+    const filtered=rows.filter(u=>String(u.username||'').toLowerCase().includes(q));
+    userList.innerHTML=filtered.map(u=>adminUserCard(u,lang)).join('')||`<div class="empty">${lang?'Pengguna tidak ditemukan.':'User not found.'}</div>`;
+    userList.querySelectorAll('[data-admin-verify]').forEach(b=>b.onclick=async()=>{const row=rows.find(x=>x.id===b.dataset.adminVerify);await adminSetProfile(b.dataset.adminVerify,'verified',!row?.verified);});
+    userList.querySelectorAll('[data-admin-emoji]').forEach(b=>b.onclick=async()=>{const current=rows.find(x=>x.id===b.dataset.adminEmoji)?.user_badge||'';const badge=prompt(lang?'Masukkan emoji/badge:':'Enter emoji/badge:',current);if(badge===null)return;await adminSetProfile(b.dataset.adminEmoji,'user_badge',badge.trim()||null);});
+    userList.querySelectorAll('[data-admin-remove-emoji]').forEach(b=>b.onclick=async()=>{await adminSetProfile(b.dataset.adminRemoveEmoji,'user_badge',null);});
+  };
+  const renderScripts=()=>{
+    const q=(scriptSearch?.value||'').trim().toLowerCase();
+    const filtered=scripts.filter(s=>{
+      const u=byId.get(s.user_id);
+      return !q || String(s.filename||'').toLowerCase().includes(q) || String(u?.username||'').toLowerCase().includes(q);
+    });
+    scriptList.innerHTML=filtered.map(s=>adminScriptCard(s,byId.get(s.user_id),lang)).join('')||`<div class="empty">${lang?'Script tidak ditemukan.':'Script not found.'}</div>`;
+    scriptList.querySelectorAll('[data-admin-delete-script]').forEach(b=>b.onclick=async()=>{if(!confirm(lang?'Hapus script ini dari Public Script?':'Remove this script from Public Scripts?'))return;try{const r=await sb.from('scripts').delete().eq('id',b.dataset.adminDeleteScript);if(r.error)throw r.error;await loadAdminPanel();await renderPublicScripts();}catch(e){const er=$('#adminError');if(er)er.textContent=e.message||'Gagal menghapus script.';}});
+  };
+  userSearch.oninput=renderUsers;
+  scriptSearch.oninput=renderScripts;
+  renderUsers();
+  renderScripts();
 }
 async function adminSetProfile(id,field,value){
   try{
@@ -603,9 +649,10 @@ async function loadScripts(){ await renderScriptsIfPossible(); }
 async function saveScript(e){
   e.preventDefault(); const err=$('#scriptError');err.textContent=''; await syncAuth();
   if(!token){err.textContent=tr('needLoginWorkspace');return;}
-  const id=$('#scriptId').value, filename=$('#scriptFilename').value.trim(), code=$('#scriptCode').value, visibility=id?$('#scriptVisibility').value:'private';
-  if(filename.length<1 || filename.length>120){err.textContent='Invalid filename.';return;}
+  const id=$('#scriptId').value, originalFilename=$('#scriptFilename').value.trim(), filename=sanitizeScriptFilename(originalFilename), code=$('#scriptCode').value, visibility=id?$('#scriptVisibility').value:'private';
+  if(originalFilename.length<1 || originalFilename.length>120){err.textContent='Invalid filename.';return;}
   if(code.length>500000){err.textContent='Script terlalu panjang.';return;}
+  if(filename!==originalFilename){err.style.color='#ffd166';err.textContent=currentLang()==='id'?"Nama script mengandung kata yang tidak pantas dan diubah menjadi 'the Sensor'.":"The script name contained an inappropriate word and was changed to 'the Sensor'.";}
   try{
     if(!id){ const {count,error:e1}=await sb.from('scripts').select('id',{count:'exact',head:true}).eq('user_id',currentUser.id); if(e1)throw e1; if((count||0)>=50){err.textContent=currentLang()==='id'?'Maksimal 50 script per akun.':'Maximum 50 scripts per account.';return;} }
     let result;
