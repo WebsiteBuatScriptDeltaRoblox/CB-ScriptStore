@@ -175,7 +175,7 @@ async function loadAdminPanel(){
       return !q || String(s.filename||'').toLowerCase().includes(q) || String(u?.username||'').toLowerCase().includes(q);
     });
     scriptList.innerHTML=filtered.map(s=>adminScriptCard(s,byId.get(s.user_id),lang)).join('')||`<div class="empty">${lang?'Script tidak ditemukan.':'Script not found.'}</div>`;
-    scriptList.querySelectorAll('[data-admin-delete-script]').forEach(b=>b.onclick=async()=>{if(!confirm(lang?'Hapus script ini dari Public Script?':'Remove this script from Public Scripts?'))return;try{const r=await sb.from('scripts').delete().eq('id',b.dataset.adminDeleteScript);if(r.error)throw r.error;await loadAdminPanel();await renderPublicScripts();}catch(e){const er=$('#adminError');if(er)er.textContent=e.message||'Gagal menghapus script.';}});
+    scriptList.querySelectorAll('[data-admin-delete-script]').forEach(b=>b.onclick=async()=>{if(!confirm(lang?'Hapus script ini dari Public Script?':'Remove this script from Public Scripts?'))return;try{const r=await sb.from('scripts').update({visibility:'private',updated_at:new Date().toISOString()}).eq('id',b.dataset.adminDeleteScript);if(r.error)throw r.error;await loadAdminPanel();await renderPublicScripts();}catch(e){const er=$('#adminError');if(er)er.textContent=e.message||'Gagal menghapus script.';}});
   };
   userSearch.oninput=renderUsers;
   scriptSearch.oninput=renderScripts;
